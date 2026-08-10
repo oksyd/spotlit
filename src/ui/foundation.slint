@@ -1,0 +1,1101 @@
+import { SpotlitTheme } from "theme.slint";
+
+export component Heading inherits Text {
+  in property <bool> dark-theme: false;
+  in property <int> size: 18;
+
+  color: SpotlitTheme.text_primary(root.dark-theme);
+  font-size: root.size * 1px;
+  font-weight: 700;
+  vertical-alignment: center;
+  overflow: elide;
+}
+
+export component BodyText inherits Text {
+  in property <bool> dark-theme: false;
+
+  color: SpotlitTheme.text_secondary(root.dark-theme);
+  font-size: 12px;
+  vertical-alignment: center;
+  overflow: elide;
+}
+
+export component LabelText inherits Text {
+  in property <bool> dark-theme: false;
+
+  color: SpotlitTheme.text_tertiary(root.dark-theme);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0px;
+  vertical-alignment: center;
+  overflow: elide;
+}
+
+export component SettingsSectionLabel inherits LabelText {
+  height: 14px;
+}
+
+export component SettingsSection inherits VerticalLayout {
+  in property <string> title;
+  in property <bool> dark-theme: false;
+
+  spacing: 9px;
+
+  SettingsSectionLabel {
+    text: root.title;
+    dark-theme: root.dark-theme;
+  }
+
+  @children
+}
+
+export component Rule inherits Rectangle {
+  in property <bool> dark-theme: false;
+
+  height: 1px;
+  background: SpotlitTheme.border_subtle(root.dark-theme);
+}
+
+export component ActionSeparator inherits Rectangle {
+  in property <bool> dark-theme: false;
+  in property <length> line-height: 24px;
+
+  width: 1px;
+  horizontal-stretch: 0;
+  background: SpotlitTheme.clear();
+  accessible-role: none;
+
+  Rectangle {
+    y: (root.height - root.line-height) / 2;
+    width: 1px;
+    height: root.line-height;
+    background: SpotlitTheme.border_muted(root.dark-theme);
+    accessible-role: none;
+  }
+}
+
+export component FocusRing inherits Rectangle {
+  in property <bool> dark-theme: false;
+  in property <length> radius: 6px;
+
+  border-radius: root.radius;
+  border-width: 1px;
+  border-color: SpotlitTheme.border_focus(root.dark-theme);
+  background: SpotlitTheme.clear();
+  accessible-role: none;
+}
+
+export component ActionFocus inherits FocusScope {
+  in property <bool> cancel-enabled: false;
+  callback activated();
+  callback cancelled();
+
+  width: 0px;
+  focus-on-click: false;
+
+  key-pressed(event) => {
+    if root.enabled && (event.text == " " || event.text == "\n" || event.text == Key.Return) {
+      root.activated();
+      return accept;
+    }
+
+    if root.enabled && root.cancel-enabled && event.text == Key.Escape {
+      root.cancelled();
+      return accept;
+    }
+
+    return reject;
+  }
+}
+
+export component Button inherits Rectangle {
+  in property <string> text;
+  in property <string> assistive-label: root.text;
+  in property <string> assistive-description: "";
+  in property <bool> dark-theme: false;
+  in property <bool> primary: false;
+  in property <bool> danger: false;
+  in property <bool> selected: false;
+  in property <bool> checkable: false;
+  in property <bool> enabled: true;
+  in property <bool> busy: false;
+  in property <bool> clickable-while-busy: false;
+  in property <bool> cancel-enabled: false;
+  in property <length> text-padding: 8px;
+  callback clicked();
+  callback cancelled();
+
+  private property <bool> action-enabled: root.enabled && (!root.busy || root.clickable-while-busy);
+
+  accessible-role: button;
+  accessible-enabled: root.action-enabled;
+  accessible-label: root.assistive-label;
+  accessible-description: root.busy ? @tr("Operation in progress") : root.assistive-description;
+  accessible-checkable: root.checkable;
+  accessible-checked: root.checkable && root.selected;
+  accessible-action-default => {
+    if root.action-enabled {
+      root.clicked();
+    }
+  }
+
+  height: 32px;
+  horizontal-stretch: 0;
+  border-radius: 6px;
+  border-width: root.primary ? 0px : 1px;
+  border-color: !root.enabled && !root.busy
+    ? SpotlitTheme.border_disabled(root.dark-theme)
+    : root.danger
+      ? SpotlitTheme.danger_border(root.dark-theme)
+      : root.selected
+        ? SpotlitTheme.border_strong(root.dark-theme)
+      : SpotlitTheme.border_muted(root.dark-theme);
+  background: !root.enabled && !root.busy
+    ? SpotlitTheme.surface_muted(root.dark-theme)
+    : root.primary
+      ? (root.busy
+        ? SpotlitTheme.surface_selected(root.dark-theme)
+        : touch.pressed
+        ? SpotlitTheme.surface_selected_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.surface_selected_hover(root.dark-theme) : SpotlitTheme.surface_selected(root.dark-theme)))
+      : root.danger
+        ? (root.busy
+          ? SpotlitTheme.danger_bg(root.dark-theme)
+          : touch.pressed
+          ? SpotlitTheme.danger_pressed(root.dark-theme)
+          : (touch.has-hover ? SpotlitTheme.danger_hover(root.dark-theme) : SpotlitTheme.danger_bg(root.dark-theme)))
+        : root.selected
+          ? (root.busy
+            ? SpotlitTheme.surface_pressed(root.dark-theme)
+            : touch.pressed
+            ? SpotlitTheme.surface_pressed(root.dark-theme)
+            : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.surface_muted(root.dark-theme)))
+        : (touch.pressed
+          ? SpotlitTheme.surface_pressed(root.dark-theme)
+          : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.surface_subtle(root.dark-theme)));
+
+  Text {
+    x: root.text-padding;
+    width: root.width - root.text-padding * 2;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled && !root.busy
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : root.primary
+        ? SpotlitTheme.text_on_selected(root.dark-theme)
+        : root.danger
+          ? SpotlitTheme.danger_text(root.dark-theme)
+          : SpotlitTheme.text_primary(root.dark-theme);
+    font-size: 12px;
+    font-weight: root.primary || root.selected || root.busy ? 700 : 500;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.action-enabled {
+        key-focus.focus();
+        root.clicked();
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.action-enabled;
+    cancel-enabled: root.cancel-enabled && root.action-enabled;
+    activated => {
+      root.clicked();
+    }
+    cancelled => {
+      root.cancelled();
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component PrimaryActionButton inherits Rectangle {
+  in property <image> icon;
+  in property <string> text;
+  in property <string> assistive-label: root.text;
+  in property <bool> dark-theme: false;
+  in property <bool> enabled: true;
+  in property <bool> busy: false;
+  in property <bool> clickable-while-busy: false;
+  in property <length> icon-size: 16px;
+  in property <length> icon-gap: 7px;
+  in property <length> inline-padding: 16px;
+  in property <length> text-width: 30px;
+  callback clicked();
+
+  private property <length> content-width: root.icon-size + root.icon-gap + root.text-width;
+  private property <length> content-x: (root.width - root.content-width) / 2;
+  private property <bool> action-enabled: root.enabled && (!root.busy || root.clickable-while-busy);
+
+  accessible-role: button;
+  accessible-enabled: root.action-enabled;
+  accessible-label: root.assistive-label;
+  accessible-description: root.busy ? @tr("Operation in progress") : "";
+  accessible-action-default => {
+    if root.action-enabled {
+      root.clicked();
+    }
+  }
+
+  height: 40px;
+  horizontal-stretch: 0;
+  border-radius: 6px;
+  border-width: 0px;
+  background: !root.enabled && !root.busy
+    ? SpotlitTheme.surface_muted(root.dark-theme)
+    : root.busy
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+    : (touch.pressed
+      ? SpotlitTheme.surface_selected_pressed(root.dark-theme)
+      : (touch.has-hover ? SpotlitTheme.surface_selected_hover(root.dark-theme) : SpotlitTheme.surface_selected(root.dark-theme)));
+
+  Image {
+    x: root.content-x;
+    y: (root.height - root.icon-size) / 2;
+    width: root.icon-size;
+    height: root.icon-size;
+    source: root.icon;
+    image-fit: contain;
+    accessible-role: none;
+    colorize: !root.enabled && !root.busy
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : SpotlitTheme.text_on_selected(root.dark-theme);
+  }
+
+  Text {
+    x: root.content-x + root.icon-size + root.icon-gap;
+    width: root.width - root.content-x - root.icon-size - root.icon-gap - root.inline-padding;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled && !root.busy
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : SpotlitTheme.text_on_selected(root.dark-theme);
+    font-size: 12px;
+    font-weight: 700;
+    horizontal-alignment: left;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.action-enabled {
+        key-focus.focus();
+        root.clicked();
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.action-enabled;
+    activated => {
+      root.clicked();
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component TooltipLabel inherits Rectangle {
+  in property <string> text;
+  in property <bool> dark-theme: false;
+  in property <length> tooltip-height: 24px;
+
+  height: root.tooltip-height;
+  border-radius: 4px;
+  border-width: 1px;
+  border-color: SpotlitTheme.tooltip_border(root.dark-theme);
+  background: SpotlitTheme.tooltip_bg(root.dark-theme);
+  accessible-role: none;
+
+  Text {
+    x: 4px;
+    width: root.width - 8px;
+    height: root.height;
+    text: root.text;
+    color: SpotlitTheme.text_on_tooltip(root.dark-theme);
+    font-size: 10px;
+    font-weight: 700;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+}
+
+export component IconButton inherits Rectangle {
+  in property <image> icon;
+  in property <string> label;
+  in property <string> tooltip: root.label;
+  in property <length> icon-size: 16px;
+  in property <length> tooltip-width: 64px;
+  in property <length> tooltip-x: (root.width - root.tooltip-width) / 2;
+  in property <length> tooltip-height: 24px;
+  in property <length> tooltip-gap: 5px;
+  in property <bool> tooltip-align-start: false;
+  in property <bool> tooltip-align-end: false;
+  in property <bool> tooltip-above: false;
+  in property <bool> dark-theme: false;
+  in property <bool> enabled: true;
+  in property <bool> accent: false;
+  in property <bool> quiet: false;
+  in property <bool> selected: false;
+  in property <bool> checkable: false;
+  in property <bool> busy: false;
+  in property <bool> clickable-while-busy: false;
+  in property <bool> show-tooltip: true;
+  callback clicked();
+
+  private property <length> resolved-tooltip-x: root.tooltip-align-start
+    ? 0px
+    : root.tooltip-align-end
+      ? root.width - root.tooltip-width
+      : root.tooltip-x;
+  private property <bool> action-enabled: root.enabled && (!root.busy || root.clickable-while-busy);
+  private property <bool> tooltip-active: root.show-tooltip && root.action-enabled && touch.has-hover;
+
+  accessible-role: button;
+  accessible-enabled: root.action-enabled;
+  accessible-label: root.label;
+  accessible-description: root.busy ? @tr("Operation in progress") : "";
+  accessible-checkable: root.checkable;
+  accessible-checked: root.checkable && root.selected;
+  accessible-action-default => {
+    if root.action-enabled {
+      root.clicked();
+    }
+  }
+
+  width: 34px;
+  height: 32px;
+  horizontal-stretch: 0;
+  border-radius: 6px;
+  border-width: 1px;
+  border-color: !root.enabled && !root.busy
+    ? (root.quiet ? SpotlitTheme.clear() : SpotlitTheme.border_disabled(root.dark-theme))
+    : root.busy
+      ? SpotlitTheme.border_strong(root.dark-theme)
+    : root.selected
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+    : root.accent
+      ? SpotlitTheme.favorite_border(root.dark-theme)
+    : root.quiet && !touch.has-hover
+        ? SpotlitTheme.clear()
+      : (touch.has-hover ? SpotlitTheme.border_muted(root.dark-theme) : SpotlitTheme.border_subtle(root.dark-theme));
+  background: !root.enabled && !root.busy
+    ? (root.quiet ? SpotlitTheme.clear() : SpotlitTheme.surface_muted(root.dark-theme))
+    : root.busy
+      ? SpotlitTheme.surface_hover(root.dark-theme)
+    : root.selected
+      ? (touch.pressed
+        ? SpotlitTheme.surface_selected_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.surface_selected_hover(root.dark-theme) : SpotlitTheme.surface_selected(root.dark-theme)))
+    : root.accent
+      ? (touch.pressed
+        ? SpotlitTheme.favorite_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.favorite_hover(root.dark-theme) : SpotlitTheme.favorite_bg(root.dark-theme)))
+      : root.quiet
+        ? (touch.pressed
+          ? SpotlitTheme.surface_pressed(root.dark-theme)
+          : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.clear()))
+      : (touch.pressed
+        ? SpotlitTheme.surface_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.surface_subtle(root.dark-theme)));
+
+  Image {
+    x: (root.width - root.icon-size) / 2;
+    y: (root.height - root.icon-size) / 2;
+    width: root.icon-size;
+    height: root.icon-size;
+    source: root.icon;
+    image-fit: contain;
+    accessible-role: none;
+    colorize: !root.enabled && !root.busy
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : root.busy
+        ? SpotlitTheme.text_primary(root.dark-theme)
+      : root.selected
+        ? SpotlitTheme.text_on_selected(root.dark-theme)
+      : root.accent
+        ? SpotlitTheme.favorite_text(root.dark-theme)
+        : SpotlitTheme.text_secondary(root.dark-theme);
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.action-enabled {
+        key-focus.focus();
+        root.clicked();
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.action-enabled;
+    activated => {
+      root.clicked();
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+
+  if root.tooltip-active: TooltipLabel {
+    x: root.resolved-tooltip-x;
+    y: root.tooltip-above ? 0px - root.tooltip-gap - root.tooltip-height : root.height + root.tooltip-gap;
+    width: root.tooltip-width;
+    tooltip-height: root.tooltip-height;
+    text: root.tooltip;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component PreviewToolButton inherits IconButton {
+  width: 40px;
+  height: 40px;
+  icon-size: 18px;
+  tooltip-above: true;
+}
+
+export component LibraryHeaderButton inherits IconButton {
+  width: 36px;
+  height: 36px;
+  quiet: true;
+  show-tooltip: false;
+}
+
+export component ModalHeaderButton inherits IconButton {
+  quiet: true;
+  tooltip-width: 104px;
+  tooltip-align-end: true;
+  show-tooltip: false;
+}
+
+export component FolderActionButton inherits IconButton {
+  width: 36px;
+  height: 36px;
+  icon-size: 18px;
+  tooltip-above: true;
+  tooltip-align-end: true;
+}
+
+export component Segment inherits Rectangle {
+  in property <string> text;
+  in property <string> context: "";
+  in property <bool> selected: false;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  in property <bool> grouped: false;
+  in property <length> text-padding: 6px;
+  callback clicked();
+
+  private property <string> accessible-name: root.context == "" ? root.text : root.context + ": " + root.text;
+
+  accessible-role: AccessibleRole.radio-button;
+  accessible-enabled: root.enabled;
+  accessible-checkable: true;
+  accessible-checked: root.selected;
+  accessible-label: root.accessible-name;
+  accessible-description: root.selected ? @tr("Selected option") : @tr("Available option");
+  accessible-action-default => {
+    if root.enabled && !root.selected {
+      root.clicked();
+    }
+  }
+
+  height: 30px;
+  horizontal-stretch: 0;
+  border-radius: root.grouped ? 5px : 6px;
+  border-width: root.grouped ? 0px : 1px;
+  border-color: !root.enabled
+    ? SpotlitTheme.border_disabled(root.dark-theme)
+    : root.selected
+    ? SpotlitTheme.surface_selected(root.dark-theme)
+    : SpotlitTheme.border_muted(root.dark-theme);
+  background: !root.enabled
+    ? (root.grouped ? SpotlitTheme.clear() : SpotlitTheme.surface_muted(root.dark-theme))
+    : root.selected
+    ? SpotlitTheme.surface_selected(root.dark-theme)
+    : (touch.pressed
+      ? SpotlitTheme.surface_pressed(root.dark-theme)
+      : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : (root.grouped ? SpotlitTheme.clear() : SpotlitTheme.surface_subtle(root.dark-theme))));
+
+  Text {
+    x: root.text-padding;
+    width: root.width - root.text-padding * 2;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : root.selected ? SpotlitTheme.text_on_selected(root.dark-theme) : SpotlitTheme.text_secondary(root.dark-theme);
+    font-size: 12px;
+    font-weight: root.selected ? 700 : 500;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.enabled {
+        key-focus.focus();
+        if !root.selected {
+          root.clicked();
+        }
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.enabled;
+    activated => {
+      if !root.selected {
+        root.clicked();
+      }
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component SegmentGroup inherits Rectangle {
+  in property <string> label;
+  in property <bool> dark-theme: false;
+
+  height: 34px;
+  horizontal-stretch: 0;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: SpotlitTheme.border_muted(root.dark-theme);
+  background: SpotlitTheme.surface_subtle(root.dark-theme);
+  accessible-role: AccessibleRole.groupbox;
+  accessible-label: root.label;
+
+  HorizontalLayout {
+    padding: 2px;
+    spacing: 2px;
+    @children
+  }
+}
+
+export component SettingsNavButton inherits Rectangle {
+  in property <string> text;
+  in property <bool> selected: false;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  callback clicked();
+
+  accessible-role: AccessibleRole.radio-button;
+  accessible-enabled: root.enabled;
+  accessible-checkable: true;
+  accessible-checked: root.selected;
+  accessible-label: root.text;
+  accessible-description: root.selected ? @tr("Selected settings page") : @tr("Available settings page");
+  accessible-action-default => {
+    if root.enabled && !root.selected {
+      root.clicked();
+    }
+  }
+
+  height: 34px;
+  border-radius: 6px;
+  border-width: 1px;
+  border-color: !root.enabled
+    ? SpotlitTheme.border_disabled(root.dark-theme)
+    : root.selected
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+      : touch.has-hover
+        ? SpotlitTheme.border_muted(root.dark-theme)
+        : SpotlitTheme.clear();
+  background: !root.enabled
+    ? SpotlitTheme.surface_muted(root.dark-theme)
+    : root.selected
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+      : touch.pressed
+        ? SpotlitTheme.surface_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.clear());
+
+  Text {
+    x: 10px;
+    width: root.width - 20px;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : root.selected ? SpotlitTheme.text_on_selected(root.dark-theme) : SpotlitTheme.text_secondary(root.dark-theme);
+    font-size: 12px;
+    font-weight: root.selected ? 700 : 500;
+    horizontal-alignment: left;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.enabled {
+        key-focus.focus();
+        if !root.selected {
+          root.clicked();
+        }
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.enabled;
+    activated => {
+      if !root.selected {
+        root.clicked();
+      }
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component SettingRow inherits Rectangle {
+  in property <string> label;
+  in property <bool> dark-theme: false;
+  in property <length> label-width: 84px;
+  in property <length> left-indent: 8px;
+  in property <length> row-height: 32px;
+
+  height: root.row-height;
+  background: SpotlitTheme.clear();
+  accessible-role: none;
+
+  HorizontalLayout {
+    x: root.left-indent;
+    width: root.width - root.left-indent;
+    height: root.height;
+    spacing: 8px;
+
+    BodyText {
+      text: root.label;
+      dark-theme: root.dark-theme;
+      width: root.label-width;
+      horizontal-stretch: 0;
+    }
+
+    Rectangle {
+      background: SpotlitTheme.clear();
+    }
+
+    @children
+  }
+}
+
+
+export component Switch inherits Rectangle {
+  in property <bool> checked: false;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  in property <length> knob-size: 18px;
+  in property <length> track-padding: 3px;
+
+  width: 42px;
+  height: 24px;
+  horizontal-stretch: 0;
+  border-radius: root.height / 2;
+  border-width: 1px;
+  border-color: !root.enabled
+    ? SpotlitTheme.border_disabled(root.dark-theme)
+    : root.checked
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+      : SpotlitTheme.border_strong(root.dark-theme);
+  background: !root.enabled
+    ? SpotlitTheme.switch_track_disabled(root.dark-theme)
+    : root.checked
+      ? SpotlitTheme.surface_selected(root.dark-theme)
+    : SpotlitTheme.switch_track(root.dark-theme);
+  accessible-role: none;
+
+  Rectangle {
+    x: root.checked ? root.width - root.track-padding - root.knob-size : root.track-padding;
+    y: (root.height - root.knob-size) / 2;
+    width: root.knob-size;
+    height: root.knob-size;
+    border-radius: root.knob-size / 2;
+    border-width: root.checked || !root.enabled ? 0px : 1px;
+    border-color: SpotlitTheme.border_muted(root.dark-theme);
+    background: !root.enabled
+      ? SpotlitTheme.switch_knob_disabled(root.dark-theme)
+      : root.checked
+        ? SpotlitTheme.switch_knob_checked(root.dark-theme)
+        : SpotlitTheme.switch_knob(root.dark-theme);
+    accessible-role: none;
+  }
+}
+
+export component ToggleRow inherits Rectangle {
+  in property <bool> checked: false;
+  in property <string> text;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  private property <length> switch-width: 42px;
+  private property <length> switch-height: 24px;
+  private property <length> inline-padding: 8px;
+  private property <bool> row-highlighted: root.enabled && (touch.has-hover || key-focus.has-focus);
+  callback toggled(bool);
+
+  accessible-role: switch;
+  accessible-enabled: root.enabled;
+  accessible-checkable: true;
+  accessible-checked: root.checked;
+  accessible-label: root.text;
+  accessible-action-default => {
+    if root.enabled {
+      root.toggled(!root.checked);
+    }
+  }
+
+  height: 36px;
+  border-radius: 6px;
+  background: root.row-highlighted ? SpotlitTheme.surface_muted(root.dark-theme) : SpotlitTheme.surface(root.dark-theme);
+
+  Text {
+    x: root.inline-padding;
+    y: 0px;
+    width: root.width - root.switch-width - root.inline-padding * 3;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : SpotlitTheme.text_secondary(root.dark-theme);
+    font-size: 12px;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  Switch {
+    x: root.width - root.switch-width - root.inline-padding;
+    y: (root.height - root.switch-height) / 2;
+    width: root.switch-width;
+    height: root.switch-height;
+    checked: root.checked;
+    enabled: root.enabled;
+    dark-theme: root.dark-theme;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.enabled {
+        key-focus.focus();
+        root.toggled(!root.checked);
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.enabled;
+    activated => {
+      root.toggled(!root.checked);
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component FavoriteButton inherits Rectangle {
+  in property <bool> checked: false;
+  in property <bool> enabled: true;
+  in property <bool> busy: false;
+  in property <bool> clickable-while-busy: false;
+  in property <bool> dark-theme: false;
+  in property <length> tooltip-height: 24px;
+  in property <length> tooltip-gap: 5px;
+  in property <bool> tooltip-above: false;
+  private property <string> action-label: root.checked ? @tr("Remove Favorite") : @tr("Add Favorite");
+  private property <string> tooltip-label: root.checked ? @tr("Remove") : @tr("Favorite");
+  private property <string> state-label: @tr("Favorite");
+  private property <length> tooltip-width: root.checked ? 62px : 68px;
+  private property <bool> action-enabled: root.enabled && (!root.busy || root.clickable-while-busy);
+  private property <bool> tooltip-active: root.action-enabled && touch.has-hover;
+  callback toggled(bool);
+
+  accessible-role: button;
+  accessible-enabled: root.action-enabled;
+  accessible-checkable: true;
+  accessible-checked: root.checked;
+  accessible-label: root.state-label;
+  accessible-description: root.busy ? @tr("Favorite update in progress") : root.action-label;
+  accessible-action-default => {
+    if root.action-enabled {
+      root.toggled(!root.checked);
+    }
+  }
+
+  width: 40px;
+  height: 40px;
+  horizontal-stretch: 0;
+  border-radius: 6px;
+  border-width: 1px;
+  border-color: root.busy
+    ? SpotlitTheme.favorite_border(root.dark-theme)
+    : !root.enabled
+    ? (root.checked ? SpotlitTheme.favorite_border_muted(root.dark-theme) : SpotlitTheme.border_disabled(root.dark-theme))
+    : root.checked
+      ? SpotlitTheme.favorite_border(root.dark-theme)
+      : (touch.has-hover ? SpotlitTheme.border_muted(root.dark-theme) : SpotlitTheme.border_subtle(root.dark-theme));
+  background: root.busy
+    ? SpotlitTheme.favorite_bg(root.dark-theme)
+    : !root.enabled
+    ? (root.checked ? SpotlitTheme.favorite_bg(root.dark-theme) : SpotlitTheme.surface_muted(root.dark-theme))
+    : root.checked
+      ? (touch.pressed
+        ? SpotlitTheme.favorite_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.favorite_hover(root.dark-theme) : SpotlitTheme.favorite_bg(root.dark-theme)))
+      : (touch.pressed
+        ? SpotlitTheme.surface_pressed(root.dark-theme)
+        : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.surface_subtle(root.dark-theme)));
+
+  Image {
+    x: (root.width - 18px) / 2;
+    y: (root.height - 18px) / 2;
+    width: 18px;
+    height: 18px;
+    source: root.checked ? @image-url("../../resources/icons/star-filled.svg") : @image-url("../../resources/icons/star.svg");
+    image-fit: contain;
+    accessible-role: none;
+    colorize: root.busy
+      ? SpotlitTheme.favorite_text(root.dark-theme)
+      : !root.enabled
+      ? (root.checked ? SpotlitTheme.favorite_disabled_text(root.dark-theme) : SpotlitTheme.text_disabled(root.dark-theme))
+      : root.checked
+        ? SpotlitTheme.favorite_text(root.dark-theme)
+        : SpotlitTheme.text_secondary(root.dark-theme);
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.action-enabled {
+        key-focus.focus();
+        root.toggled(!root.checked);
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.action-enabled;
+    activated => {
+      root.toggled(!root.checked);
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+
+  if root.tooltip-active: TooltipLabel {
+    x: (root.width - root.tooltip-width) / 2;
+    y: root.tooltip-above ? 0px - root.tooltip-gap - root.tooltip-height : root.height + root.tooltip-gap;
+    width: root.tooltip-width;
+    tooltip-height: root.tooltip-height;
+    text: root.tooltip-label;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component MetricRow inherits Rectangle {
+  in property <string> label;
+  in property <string> value;
+  in property <bool> dark-theme: false;
+  in property <length> left-indent: 8px;
+
+  private property <string> accessible-summary: root.label + ": " + root.value;
+
+  accessible-role: AccessibleRole.text;
+  accessible-label: root.accessible-summary;
+
+  height: 22px;
+  background: SpotlitTheme.clear();
+
+  HorizontalLayout {
+    x: root.left-indent;
+    width: root.width - root.left-indent;
+    spacing: 8px;
+
+    BodyText {
+      text: root.label;
+      dark-theme: root.dark-theme;
+    }
+
+    BodyText {
+      text: root.value;
+      dark-theme: root.dark-theme;
+      width: 96px;
+      horizontal-stretch: 0;
+      horizontal-alignment: right;
+    }
+  }
+}
+
+
+export component EmptyState inherits Rectangle {
+  in property <string> title;
+  in property <string> body;
+  in property <string> primary-action-text: "";
+  in property <string> secondary-action-text: "";
+  in property <bool> primary-action-enabled: true;
+  in property <bool> secondary-action-enabled: true;
+  in property <bool> primary-action-busy: false;
+  in property <bool> secondary-action-busy: false;
+  in property <bool> dark-theme: false;
+  in property <int> title-size: 16;
+  in property <length> content-height: 48px;
+  in property <length> content-y: (root.height - root.content-height) / 2;
+  callback primary-action-clicked();
+  callback secondary-action-clicked();
+
+  private property <bool> has-body: root.body != "";
+  private property <bool> has-primary-action: root.primary-action-text != "";
+  private property <bool> has-secondary-action: root.secondary-action-text != "";
+  private property <length> action-button-width: 94px;
+  private property <length> action-button-height: 34px;
+  private property <length> action-gap: 8px;
+  private property <length> action-row-width: root.has-primary-action && root.has-secondary-action
+    ? root.action-button-width * 2 + root.action-gap
+    : root.action-button-width;
+  private property <string> accessible-summary: root.has-body
+    ? root.body
+    : root.has-primary-action && root.has-secondary-action
+      ? root.primary-action-text + " or " + root.secondary-action-text
+      : root.has-primary-action
+        ? root.primary-action-text
+        : root.has-secondary-action ? root.secondary-action-text : root.title;
+
+  border-radius: 7px;
+  background: SpotlitTheme.clear();
+  accessible-role: AccessibleRole.groupbox;
+  accessible-label: root.title;
+  accessible-description: root.accessible-summary;
+
+  VerticalLayout {
+    x: 0px;
+    y: root.content-y;
+    width: root.width;
+    height: root.content-height;
+    spacing: 7px;
+
+    Heading {
+      text: root.title;
+      dark-theme: root.dark-theme;
+      size: root.title-size;
+      height: root.title-size > 18 ? 30px : 22px;
+      horizontal-alignment: center;
+    }
+
+    if root.has-body: BodyText {
+      text: root.body;
+      dark-theme: root.dark-theme;
+      height: 18px;
+      horizontal-alignment: center;
+    }
+
+    if root.has-primary-action || root.has-secondary-action: Rectangle {
+      width: root.width;
+      height: root.action-button-height;
+      background: SpotlitTheme.clear();
+
+      HorizontalLayout {
+        x: (parent.width - root.action-row-width) / 2;
+        width: root.action-row-width;
+        height: root.action-button-height;
+        spacing: root.action-gap;
+
+        if root.has-primary-action: Button {
+          text: root.primary-action-text;
+          assistive-label: root.title + ": " + root.primary-action-text;
+          enabled: root.primary-action-enabled;
+          busy: root.primary-action-busy;
+          dark-theme: root.dark-theme;
+          primary: true;
+          width: root.action-button-width;
+          height: root.action-button-height;
+          clicked => {
+            root.primary-action-clicked();
+          }
+        }
+
+        if root.has-secondary-action: Button {
+          text: root.secondary-action-text;
+          assistive-label: root.title + ": " + root.secondary-action-text;
+          enabled: root.secondary-action-enabled;
+          busy: root.secondary-action-busy;
+          dark-theme: root.dark-theme;
+          width: root.action-button-width;
+          height: root.action-button-height;
+          clicked => {
+            root.secondary-action-clicked();
+          }
+        }
+      }
+    }
+  }
+}

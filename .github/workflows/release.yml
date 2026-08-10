@@ -1,0 +1,465 @@
+name: Prepare Release Draft
+
+on:
+  push:
+    tags:
+      - "[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-draft-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ github.ref_name }}
+  TZ: UTC
+
+jobs:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set reproducible build timestamp
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            appstream \
+            desktop-file-utils \
+            libfontconfig1-dev \
+            libglib2.0-bin \
+            libxml2-utils \
+            libwayland-dev \
+            libxkbcommon-dev
+
+      - name: Restore Cargo cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/cargo-about
+            target/debug
+            target/release
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Install cargo-about
+        shell: bash
+        run: |
+          installed_version="$(cargo about --version 2>/dev/null || true)"
+          if [[ "${installed_version}" != "cargo-about 0.9.1" ]]; then
+            cargo install --locked --features cli --version 0.9.1 cargo-about
+          fi
+
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "spotlit") | .version')"
+          if [[ "${RELEASE_TAG}" != "${version}" ]]; then
+            echo "Tag ${RELEASE_TAG} does not match Cargo package version ${version}." >&2
+            exit 1
+          fi
+
+      - name: Validate Linux desktop metadata
+        run: |
+          desktop-file-validate resources/packaging/linux/spotlit.desktop
+          appstreamcli validate --strict --no-net resources/packaging/linux/io.github.oksyd.spotlit.metainfo.xml
+          metainfo_version="$(xmllint --xpath 'string(/component/releases/release[1]/@version)' resources/packaging/linux/io.github.oksyd.spotlit.metainfo.xml)"
+          test "${metainfo_version}" = "${RELEASE_TAG}"
+
+      - name: Generate third-party license report
+        shell: bash
+        run: |
+          mkdir -p target/legal
+          cargo fetch --locked
+          if ! cargo about generate \
+              --config resources/packaging/licenses/about.toml \
+              --locked \
+              --offline \
+              --fail \
+              --output-file target/legal/THIRD-PARTY-LICENSES.txt \
+              resources/packaging/licenses/third-party.hbs \
+              2>target/legal/cargo-about.log; then
+            cat target/legal/cargo-about.log >&2
+            exit 1
+          fi
+          if [[ -s target/legal/cargo-about.log ]]; then
+            cat target/legal/cargo-about.log >&2
+            exit 1
+          fi
+          test -s target/legal/THIRD-PARTY-LICENSES.txt
+          ! grep -Fq "&quot;" target/legal/THIRD-PARTY-LICENSES.txt
+          ! grep -Eq '^- spotlit ' target/legal/THIRD-PARTY-LICENSES.txt
+          grep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
+            target/legal/THIRD-PARTY-LICENSES.txt
+
+      - name: Validate Cargo package
+        run: cargo package --locked
+
+      - name: Upload third-party license report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-licenses
+          path: target/legal/THIRD-PARTY-LICENSES.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  build-linux:
+    name: Build Linux x86_64
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set reproducible build timestamp
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Install Linux build and package dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            appstream \
+            desktop-file-utils \
+            dpkg-dev \
+            libfontconfig1-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            lintian
+
+      - name: Restore Cargo cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target/debug
+            target/release
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Download third-party license report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-licenses
+          path: target/legal
+
+      - name: Build release binary
+        run: cargo build --release --locked --bin spotlit
+
+      - name: Create and verify Linux archive
+        shell: bash
+        run: |
+          archive="spotlit-${RELEASE_TAG}-x86_64-unknown-linux-gnu"
+          archive_path="target/dist/${archive}.tar.gz"
+          install -Dm755 target/release/spotlit "target/dist/${archive}/spotlit"
+          install -m644 README.md LICENSE target/legal/THIRD-PARTY-LICENSES.txt "target/dist/${archive}/"
+          tar \
+            --sort=name \
+            --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C target/dist \
+            -czf "${archive_path}" \
+            "${archive}"
+          mkdir -p target/repro-check
+          tar \
+            --sort=name \
+            --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C target/dist \
+            -czf "target/repro-check/${archive}.tar.gz" \
+            "${archive}"
+          cmp "${archive_path}" "target/repro-check/${archive}.tar.gz"
+
+      - name: Create and verify Debian package reproducibility
+        shell: bash
+        run: |
+          bash resources/packaging/debian/package.sh \
+            "${RELEASE_TAG}" \
+            target/release/spotlit \
+            target/legal/THIRD-PARTY-LICENSES.txt \
+            target/dist
+          bash resources/packaging/debian/package.sh \
+            "${RELEASE_TAG}" \
+            target/release/spotlit \
+            target/legal/THIRD-PARTY-LICENSES.txt \
+            target/repro-check
+          cmp \
+            "target/dist/spotlit_${RELEASE_TAG}_amd64.deb" \
+            "target/repro-check/spotlit_${RELEASE_TAG}_amd64.deb"
+
+      - name: Verify Debian package
+        shell: bash
+        run: |
+          package="target/dist/spotlit_${RELEASE_TAG}_amd64.deb"
+          extracted="target/deb-verify"
+          test "$(dpkg-deb --field "${package}" Package)" = "spotlit"
+          test "$(dpkg-deb --field "${package}" Version)" = "${RELEASE_TAG}"
+          test "$(dpkg-deb --field "${package}" Architecture)" = "amd64"
+          test -n "$(dpkg-deb --field "${package}" Depends)"
+
+          control_entries="$(dpkg-deb --ctrl-tarfile "${package}" | tar -tf -)"
+          test "${control_entries}" = $'./\n./control'
+
+          mkdir -p "${extracted}"
+          dpkg-deb --extract "${package}" "${extracted}"
+          test -x "${extracted}/usr/bin/spotlit"
+          test "$(stat -c '%a' "${extracted}/usr/bin/spotlit")" = "755"
+          for path in \
+            usr/share/applications/spotlit.desktop \
+            usr/share/icons/hicolor/scalable/apps/spotlit.svg \
+            usr/share/metainfo/io.github.oksyd.spotlit.metainfo.xml \
+            usr/share/man/man1/spotlit.1.gz \
+            usr/share/doc/spotlit/changelog.Debian.gz \
+            usr/share/doc/spotlit/copyright \
+            usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt; do
+            test -f "${extracted}/${path}"
+          done
+          desktop-file-validate "${extracted}/usr/share/applications/spotlit.desktop"
+          appstreamcli validate --strict --no-net \
+            "${extracted}/usr/share/metainfo/io.github.oksyd.spotlit.metainfo.xml"
+          gzip -t "${extracted}/usr/share/man/man1/spotlit.1.gz"
+          gzip -t "${extracted}/usr/share/doc/spotlit/changelog.Debian.gz"
+          grep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
+            "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt"
+          lintian --fail-on error "${package}"
+          sudo apt-get --simulate install "${PWD}/${package}"
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-linux-x86_64
+          path: |
+            target/dist/*.deb
+            target/dist/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  build-windows:
+    name: Build Windows x86_64
+    needs: validate
+    runs-on: windows-2025
+    timeout-minutes: 40
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set reproducible build timestamp
+        shell: pwsh
+        run: |
+          $epoch = git show -s --format=%ct HEAD
+          "SOURCE_DATE_EPOCH=$epoch" >> $env:GITHUB_ENV
+
+      - name: Restore Cargo cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target/debug
+            target/release
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Download third-party license report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-licenses
+          path: target/legal
+
+      - name: Build release binary
+        run: cargo build --release --locked --bin spotlit
+
+      - name: Verify Windows GUI subsystem
+        shell: pwsh
+        run: |
+          $env:SPOTLIT_ASSERT_WINDOWS_GUI_SUBSYSTEM = (Resolve-Path "target/release/spotlit.exe").Path
+          cargo test --locked --test windows_subsystem assert_windows_gui_subsystem_artifact -- --exact --ignored
+
+      - name: Create and verify Windows archive
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression
+
+          function New-DeterministicZip {
+            param(
+              [string] $SourceDirectory,
+              [string] $DestinationPath,
+              [long] $Epoch
+            )
+
+            $source = (Resolve-Path $SourceDirectory).Path
+            $base = [System.IO.Directory]::GetParent($source).FullName
+            $timestamp = [DateTimeOffset]::FromUnixTimeSeconds($Epoch).ToUniversalTime()
+            $stream = [System.IO.File]::Open(
+              $DestinationPath,
+              [System.IO.FileMode]::Create,
+              [System.IO.FileAccess]::Write,
+              [System.IO.FileShare]::None
+            )
+            $zip = [System.IO.Compression.ZipArchive]::new(
+              $stream,
+              [System.IO.Compression.ZipArchiveMode]::Create,
+              $false
+            )
+            try {
+              $files = Get-ChildItem -LiteralPath $source -File -Recurse | Sort-Object FullName
+              foreach ($file in $files) {
+                $relative = [System.IO.Path]::GetRelativePath($base, $file.FullName).Replace('\', '/')
+                $entry = $zip.CreateEntry(
+                  $relative,
+                  [System.IO.Compression.CompressionLevel]::Optimal
+                )
+                $entry.LastWriteTime = $timestamp
+                $inputStream = $file.OpenRead()
+                $outputStream = $entry.Open()
+                try {
+                  $inputStream.CopyTo($outputStream)
+                } finally {
+                  $outputStream.Dispose()
+                  $inputStream.Dispose()
+                }
+              }
+            } finally {
+              $zip.Dispose()
+              $stream.Dispose()
+            }
+          }
+
+          $archive = "spotlit-$env:RELEASE_TAG-x86_64-pc-windows-msvc"
+          $archiveDirectory = "target/dist/$archive"
+          New-Item -ItemType Directory -Force -Path $archiveDirectory | Out-Null
+          Copy-Item "target/release/spotlit.exe", "README.md", "LICENSE" -Destination $archiveDirectory
+          Copy-Item "target/legal/THIRD-PARTY-LICENSES.txt" -Destination $archiveDirectory
+
+          $archivePath = "target/dist/$archive.zip"
+          New-Item -ItemType Directory -Force -Path "target/repro-check" | Out-Null
+          $reproPath = "target/repro-check/$archive.zip"
+          New-DeterministicZip $archiveDirectory $archivePath ([long] $env:SOURCE_DATE_EPOCH)
+          New-DeterministicZip $archiveDirectory $reproPath ([long] $env:SOURCE_DATE_EPOCH)
+          if ((Get-FileHash $archivePath).Hash -ne (Get-FileHash $reproPath).Hash) {
+            throw "Windows archive is not reproducible."
+          }
+
+      - name: Upload Windows archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-windows-x86_64
+          path: target/dist/*.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  draft:
+    name: Create GitHub Release draft
+    needs:
+      - validate
+      - build-linux
+      - build-windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-*
+          path: target/dist
+          merge-multiple: true
+
+      - name: Generate and verify checksums
+        shell: bash
+        run: |
+          linux_archive="spotlit-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
+          debian_package="spotlit_${RELEASE_TAG}_amd64.deb"
+          windows_archive="spotlit-${RELEASE_TAG}-x86_64-pc-windows-msvc.zip"
+          license_report="THIRD-PARTY-LICENSES.txt"
+          for asset in \
+            "${debian_package}" \
+            "${license_report}" \
+            "${linux_archive}" \
+            "${windows_archive}"; do
+            if [[ ! -f "target/dist/${asset}" ]]; then
+              echo "Missing release asset: ${asset}" >&2
+              exit 1
+            fi
+          done
+          cd target/dist
+          sha256sum \
+            "${debian_package}" \
+            "${license_report}" \
+            "${linux_archive}" \
+            "${windows_archive}" \
+            | LC_ALL=C sort -k2 > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Attest release assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: target/dist/*
+
+      - name: Create or update GitHub Release draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            is_draft="$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft)"
+            if [[ "${is_draft}" != "true" ]]; then
+              echo "Release ${RELEASE_TAG} is already published." >&2
+              exit 1
+            fi
+            gh release upload "${RELEASE_TAG}" target/dist/* --clobber --repo "${GITHUB_REPOSITORY}"
+            exit 0
+          fi
+
+          prerelease=()
+          if [[ "${RELEASE_TAG}" == *-* ]]; then
+            prerelease+=(--prerelease)
+          fi
+          gh release create "${RELEASE_TAG}" target/dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --draft \
+            --title "Spotlit ${RELEASE_TAG}" \
+            --generate-notes \
+            "${prerelease[@]}"

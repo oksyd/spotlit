@@ -1,0 +1,1487 @@
+import { WallpaperItem } from "models.slint";
+import {
+  ActionSeparator,
+  BodyText,
+  Button,
+  EmptyState,
+  FavoriteButton,
+  Heading,
+  LabelText,
+  LibraryHeaderButton,
+  PreviewToolButton,
+  PrimaryActionButton,
+  Rule,
+} from "foundation.slint";
+import { FilterTabs, WallpaperList } from "library.slint";
+import { SettingsModal } from "settings-modal.slint";
+import { SpotlitTheme } from "theme.slint";
+
+export global I18n {
+  public pure function message(value: string) -> string {
+    if value == "Added to favorites" { return @tr("Added to favorites"); }
+    if value == "Adding favorite" { return @tr("Adding favorite"); }
+    if value == "Applying wallpaper" { return @tr("Applying wallpaper"); }
+    if value == "Auto sync enabled and synced" { return @tr("Auto sync enabled and synced"); }
+    if value == "Background setting saved" { return @tr("Background setting saved"); }
+    if value == "Bing Wallpaper" { return @tr("Bing Wallpaper"); }
+    if value == "Blur setting request failed" { return @tr("Blur setting request failed"); }
+    if value == "Cache cleaned" { return @tr("Cache cleaned"); }
+    if value == "Check failed" { return @tr("Check failed"); }
+    if value == "Checking for updates" { return @tr("Checking for updates"); }
+    if value == "Clearing cache" { return @tr("Clearing cache"); }
+    if value == "Current Desktop" { return @tr("Current Desktop"); }
+    if value == "Current version" { return @tr("Current version"); }
+    if value == "Disabled" { return @tr("Disabled"); }
+    if value == "Export canceled" { return @tr("Export canceled"); }
+    if value == "Export request failed" { return @tr("Export request failed"); }
+    if value == "Extension install request failed" { return @tr("Extension install request failed"); }
+    if value == "Extension request failed" { return @tr("Extension request failed"); }
+    if value == "Favorite request failed" { return @tr("Favorite request failed"); }
+    if value == "German" { return @tr("German"); }
+    if value == "GNOME extension disabled" { return @tr("GNOME extension disabled"); }
+    if value == "GNOME extension enabled" { return @tr("GNOME extension enabled"); }
+    if value == "GNOME extension installed" { return @tr("GNOME extension installed"); }
+    if value == "History limit saved" { return @tr("History limit saved"); }
+    if value == "Import canceled" { return @tr("Import canceled"); }
+    if value == "Import request failed" { return @tr("Import request failed"); }
+    if value == "Library" { return @tr("Library"); }
+    if value == "Library refreshed" { return @tr("Library refreshed"); }
+    if value == "Library up to date" { return @tr("Library up to date"); }
+    if value == "Language setting saved" { return @tr("Language setting saved"); }
+    if value == "Light" { return @tr("Light"); }
+    if value == "Lock Screen" { return @tr("Lock Screen"); }
+    if value == "Lock screen blur saved" { return @tr("Lock screen blur saved"); }
+    if value == "Lock screen display request failed" { return @tr("Lock screen display request failed"); }
+    if value == "Lock screen display saved" { return @tr("Lock screen display saved"); }
+    if value == "No releases published" { return @tr("No releases published"); }
+    if value == "Not Installed" { return @tr("Not Installed"); }
+    if value == "Open folder request failed" { return @tr("Open folder request failed"); }
+    if value == "Open release page request failed" { return @tr("Open release page request failed"); }
+    if value == "Open web page request failed" { return @tr("Open web page request failed"); }
+    if value == "Opened current image" { return @tr("Opened current image"); }
+    if value == "Opened data folder" { return @tr("Opened data folder"); }
+    if value == "Opened favorites folder" { return @tr("Opened favorites folder"); }
+    if value == "Opened logs folder" { return @tr("Opened logs folder"); }
+    if value == "Opened Spotlit release page" { return @tr("Opened Spotlit release page"); }
+    if value == "Opened wallpaper info" { return @tr("Opened wallpaper info"); }
+    if value == "Opening" { return @tr("Opening"); }
+    if value == "Opening data folder" { return @tr("Opening data folder"); }
+    if value == "Opening export dialog" { return @tr("Opening export dialog"); }
+    if value == "Opening favorites folder" { return @tr("Opening favorites folder"); }
+    if value == "Opening file" { return @tr("Opening file"); }
+    if value == "Opening import dialog" { return @tr("Opening import dialog"); }
+    if value == "Opening logs folder" { return @tr("Opening logs folder"); }
+    if value == "Opening release page" { return @tr("Opening release page"); }
+    if value == "Opening web page" { return @tr("Opening web page"); }
+    if value == "Preview cache updated" { return @tr("Preview cache updated"); }
+    if value == "Ready" { return @tr("Ready"); }
+    if value == "Refresh request failed" { return @tr("Refresh request failed"); }
+    if value == "Refreshing library" { return @tr("Refreshing library"); }
+    if value == "Remove request failed" { return @tr("Remove request failed"); }
+    if value == "Removed from favorites" { return @tr("Removed from favorites"); }
+    if value == "Removing favorite" { return @tr("Removing favorite"); }
+    if value == "Removing wallpaper" { return @tr("Removing wallpaper"); }
+    if value == "Restart Required" { return @tr("Restart Required"); }
+    if value == "Reveal request failed" { return @tr("Reveal request failed"); }
+    if value == "Saving settings" { return @tr("Saving settings"); }
+    if value == "Selected file is not a supported landscape wallpaper" { return @tr("Selected file is not a supported landscape wallpaper"); }
+    if value == "Settings request failed" { return @tr("Settings request failed"); }
+    if value == "Settings saved" { return @tr("Settings saved"); }
+    if value == "Simplified Chinese" { return @tr("Simplified Chinese"); }
+    if value == "Soft" { return @tr("Soft"); }
+    if value == "Startup setting saved" { return @tr("Startup setting saved"); }
+    if value == "Sync interval saved" { return @tr("Sync interval saved"); }
+    if value == "Sync request failed" { return @tr("Sync request failed"); }
+    if value == "System" { return @tr("System"); }
+    if value == "System (Dark)" { return @tr("System (Dark)"); }
+    if value == "System (Light)" { return @tr("System (Light)"); }
+    if value == "Theme setting saved" { return @tr("Theme setting saved"); }
+    if value == "Unavailable" { return @tr("Unavailable"); }
+    if value == "Unlimited" { return @tr("Unlimited"); }
+    if value == "Unsupported" { return @tr("Unsupported"); }
+    if value == "Update check could not be started" { return @tr("Update check could not be started"); }
+    if value == "Update setting saved" { return @tr("Update setting saved"); }
+    if value == "Wallpaper applied" { return @tr("Wallpaper applied"); }
+    if value == "Wallpaper source saved" { return @tr("Wallpaper source saved"); }
+    if value == "Dark" { return @tr("Dark"); }
+    if value == "Clear" { return @tr("Clear"); }
+    if value == "Favorites" { return @tr("Favorites"); }
+    return value;
+  }
+
+  public pure function current-version(version: string) -> string { return @tr("Current version v{}", version); }
+  public pure function version-available(version: string) -> string { return @tr("Version v{} available", version); }
+  public pure function up-to-date(version: string) -> string { return @tr("Up to date (v{})", version); }
+  public pure function wallpaper-count(count: int) -> string { return @tr("{} wallpapers", count); }
+  public pure function favorite-count(count: int) -> string { return @tr("{} favorites", count); }
+  public pure function sync-interval(minutes: int) -> string { return @tr("{} minutes", minutes); }
+  public pure function sync-time(timestamp: string) -> string { return @tr("Sync {}", timestamp); }
+  public pure function update-check-failed(error: string) -> string { return @tr("Update check failed: {}", error); }
+  public pure function failed(error: string) -> string { return @tr("Failed: {}", error); }
+  public pure function cache-cleaned(count: string) -> string { return @tr("Cache cleaned: {} wallpapers removed", count); }
+  public pure function history-limit-removed(count: string) -> string { return @tr("History limit saved: {} wallpapers removed", count); }
+  public pure function imported(value: string) -> string { return @tr("Imported {}", value); }
+  public pure function exported(value: string) -> string { return @tr("Exported to {}", value); }
+  public pure function opened(value: string) -> string { return @tr("Opened {}", value); }
+  public pure function removed(value: string) -> string { return @tr("Removed {}", value); }
+}
+
+export component MainWindow inherits Window {
+  title: @tr("Spotlit");
+  icon: @image-url("../../resources/icons/spotlit-logo.svg");
+  width: 1180px;
+  height: 680px;
+
+  in-out property <bool> has-current: false;
+  in-out property <bool> has-selection: false;
+  in-out property <bool> auto-sync-enabled: false;
+  in-out property <string> apply-target-text: @tr("Lock Screen");
+  in-out property <bool> lock-screen-apply-available: true;
+  in-out property <bool> gnome-integration-visible: false;
+  in-out property <string> gnome-integration-state-text: "Not Installed";
+  in-out property <string> lock-screen-blur-text: "System";
+  in-out property <string> lock-screen-display-text: "System";
+  in-out property <bool> start-at-login-enabled: false;
+  in-out property <bool> keep-running-in-background-enabled: true;
+  in-out property <bool> automatic-update-checks-enabled: true;
+  in-out property <string> language-code: "system";
+  in-out property <bool> favorites-only-enabled: false;
+  in-out property <bool> dark-theme: false;
+  in-out property <bool> show-settings: false;
+  in-out property <string> settings-page: "wallpaper";
+  in-out property <bool> show-current-details: false;
+  in-out property <bool> sync-pending: false;
+  in-out property <string> sync-pending-id: "";
+  in-out property <bool> refresh-pending: false;
+  in-out property <bool> import-pending: false;
+  in-out property <string> action-feedback-text: "";
+  in-out property <string> settings-feedback-text: "";
+  in-out property <string> wallpaper-source-text: "Current Desktop";
+  in-out property <string> sync-interval-text: "30 minutes";
+  in-out property <string> history-limit-text: "250 wallpapers";
+  in-out property <string> theme-text: "System";
+  in-out property <string> update-status-kind: "not-checked";
+  in-out property <string> update-status-version: "";
+  in-out property <string> update-status-text: root.update-status-kind == "current"
+    ? I18n.current-version(root.update-status-version)
+    : root.update-status-kind == "checking"
+      ? @tr("Checking for updates")
+      : root.update-status-kind == "no-release"
+        ? @tr("No releases published")
+        : root.update-status-kind == "available"
+          ? I18n.version-available(root.update-status-version)
+          : root.update-status-kind == "up-to-date"
+            ? I18n.up-to-date(root.update-status-version)
+            : root.update-status-kind == "failed"
+              ? @tr("Check failed")
+              : @tr("Not checked");
+  in-out property <bool> update-check-pending: false;
+  in-out property <bool> update-release-available: false;
+  in-out property <string> library-summary: "0 wallpapers";
+  in-out property <string> favorite-summary: "0 favorites";
+  in-out property <string> pending-remove-id: "";
+  in-out property <bool> pending-clean-cache: false;
+  in-out property <string> removing-wallpaper-id: "";
+  in-out property <bool> clean-cache-pending: false;
+  in-out property <bool> external-action-pending: false;
+  in-out property <string> external-action-key: "";
+  in-out property <string> external-action-id: "";
+  in-out property <bool> settings-save-pending: false;
+  in-out property <string> favorite-pending-id: "";
+  in-out property <image> current-preview;
+  in-out property <string> current-preview-path: "";
+  in-out property <bool> current-preview-ready: false;
+  in-out property <image> selected-preview;
+  in-out property <string> selected-preview-path: "";
+  in-out property <bool> selected-preview-ready: false;
+  in-out property <bool> diagnostics-enabled: false;
+  in-out property <bool> show-diagnostics: false;
+  in-out property <string> diagnostics-startup: "-";
+  in-out property <string> diagnostics-first-scan: "-";
+  in-out property <string> diagnostics-first-snapshot: "-";
+  in-out property <string> diagnostics-current-preview: "-";
+  in-out property <string> diagnostics-thumbnails: "-";
+  in-out property <string> current-id: "";
+  in-out property <string> current-title: "";
+  in-out property <string> current-details: "";
+  in-out property <string> current-image-path: "";
+  in-out property <string> current-info-url: "";
+  in-out property <string> current-preview-source-path: "";
+  in-out property <bool> current-favorite: false;
+  in-out property <WallpaperItem> selected-wallpaper;
+  in property <[WallpaperItem]> wallpapers;
+  in property <[WallpaperItem]> favorite-wallpapers;
+  private property <bool> has-active-wallpaper: root.has-selection || root.has-current;
+  private property <string> active-wallpaper-id: root.has-selection ? root.selected-wallpaper.id : root.current-id;
+  private property <string> active-wallpaper-title: root.has-selection ? root.selected-wallpaper.title : root.current-title;
+  private property <string> active-wallpaper-details: root.has-selection ? root.selected-wallpaper.details : root.current-details;
+  private property <string> active-wallpaper-image-path: root.has-selection ? root.selected-wallpaper.image-path : root.current-image-path;
+  private property <string> active-wallpaper-info-url: root.has-selection ? root.selected-wallpaper.info-url : root.current-info-url;
+  private property <bool> active-wallpaper-favorite: root.has-active-wallpaper && (root.has-selection ? root.selected-wallpaper.favorite : root.current-favorite);
+  private property <bool> active-preview-ready: root.has-selection ? root.selected-preview-ready : root.current-preview-ready;
+  private property <bool> active-preview-source-available: root.has-selection ? (root.selected-wallpaper.preview-path != "" || root.selected-wallpaper.image-path != "") : root.current-preview-source-path != "";
+  private property <bool> active-wallpaper-has-info-url: root.active-wallpaper-info-url != "";
+  private property <bool> active-sync-pending: root.sync-pending && root.sync-pending-id == root.active-wallpaper-id;
+  private property <string> active-preview-state: root.active-preview-source-available ? @tr("Loading preview") : @tr("Preview pending");
+  private property <bool> library-action-pending: root.refresh-pending || root.import-pending;
+  private property <bool> pending-remove-active: root.pending-remove-id != "" && root.pending-remove-id == root.active-wallpaper-id;
+  private property <bool> current-wallpaper-removing: root.removing-wallpaper-id != "" && root.removing-wallpaper-id == root.current-id;
+  private property <bool> can-show-current-wallpaper: root.has-current && !root.current-wallpaper-removing;
+  private property <bool> removing-wallpaper-pending: root.removing-wallpaper-id != "";
+  private property <bool> removing-active-wallpaper: root.removing-wallpaper-id != "" && root.removing-wallpaper-id == root.active-wallpaper-id;
+  private property <bool> active-wallpaper-operable: root.has-active-wallpaper && !root.removing-active-wallpaper;
+  private property <bool> favorite-action-pending: root.favorite-pending-id != "";
+  private property <bool> active-favorite-pending: root.favorite-pending-id != "" && root.favorite-pending-id == root.active-wallpaper-id;
+  private property <bool> background-favorite-pending: root.favorite-action-pending && !root.active-favorite-pending;
+  private property <bool> active-wallpaper-commandable: root.active-wallpaper-operable && !root.active-favorite-pending;
+  private property <bool> settings-operation-pending: root.settings-save-pending || root.clean-cache-pending;
+  private property <bool> external-action-targets-settings: root.external-action-key == "data-folder" || root.external-action-key == "favorites-folder" || root.external-action-key == "logs-folder" || root.external-action-key == "update-release";
+  private property <bool> settings-owned-external-action-pending: root.external-action-pending && root.external-action-targets-settings;
+  private property <bool> active-external-action-pending: root.external-action-pending && root.external-action-id == root.active-wallpaper-id;
+  private property <bool> wallpaper-external-action-pending: root.external-action-pending && !root.external-action-targets-settings;
+  private property <bool> background-sync-pending: root.sync-pending && root.sync-pending-id != "" && root.sync-pending-id != root.active-wallpaper-id;
+  private property <bool> background-external-action-pending: root.wallpaper-external-action-pending && root.external-action-id != "" && root.external-action-id != root.active-wallpaper-id;
+  private property <bool> background-remove-pending: root.removing-wallpaper-pending && !root.removing-active-wallpaper;
+  private property <bool> background-wallpaper-action-pending: root.background-sync-pending || root.background-external-action-pending || root.background-remove-pending;
+  private property <bool> wallpaper-command-pending: root.sync-pending || root.wallpaper-external-action-pending || root.removing-wallpaper-pending;
+  private property <bool> user-command-pending: root.library-action-pending || root.wallpaper-command-pending || root.settings-operation-pending;
+  private property <bool> favorite-command-blocked: root.user-command-pending || root.favorite-action-pending;
+  private property <bool> active-wallpaper-favorite-commandable: root.active-wallpaper-operable && !root.favorite-command-blocked;
+  private property <bool> library-filter-blocked: root.library-action-pending || root.settings-operation-pending;
+  private property <bool> action-feedback-pending: root.user-command-pending || root.favorite-action-pending || root.settings-owned-external-action-pending;
+  private property <bool> global-action-feedback-pending: root.library-action-pending || root.settings-operation-pending || root.settings-owned-external-action-pending || root.background-wallpaper-action-pending || root.background-favorite-pending || (root.external-action-pending && root.external-action-id == "");
+  private property <bool> active-action-feedback-pending: root.active-sync-pending || root.active-external-action-pending || root.removing-active-wallpaper || root.active-favorite-pending;
+  private property <bool> show-action-feedback-in-summary: root.action-feedback-text != "" && (!root.has-active-wallpaper || !root.action-feedback-pending || root.global-action-feedback-pending || root.active-action-feedback-pending);
+  private property <string> summary-action-feedback-text: root.show-action-feedback-in-summary ? root.action-feedback-text : "";
+  private property <string> effective-settings-feedback-text: root.settings-operation-pending ? root.settings-pending-feedback() : root.settings-feedback-text != "" ? root.settings-feedback-text : root.settings-owned-external-action-pending ? root.external-pending-feedback() : "";
+  private property <bool> action-feedback-clearable: root.summary-action-feedback-text != "" && !root.action-feedback-pending;
+  private property <bool> library-commandable: !root.show-settings && !root.user-command-pending;
+  private property <bool> library-filter-commandable: !root.show-settings && !root.library-filter-blocked;
+  private property <bool> current-commandable: root.can-show-current-wallpaper && !root.show-settings;
+  private property <bool> details-commandable: root.active-wallpaper-operable && !root.show-settings;
+  private property <bool> active-favorite-commandable: root.active-wallpaper-favorite-commandable && !root.show-settings;
+  private property <bool> active-sync-commandable: root.active-wallpaper-commandable && root.lock-screen-apply-available && !root.show-settings && !root.user-command-pending;
+  private property <bool> active-reveal-commandable: root.active-wallpaper-commandable && !root.show-settings && !root.user-command-pending;
+  private property <bool> active-export-commandable: root.active-wallpaper-commandable && !root.show-settings && !root.user-command-pending;
+  private property <bool> active-info-commandable: root.active-wallpaper-commandable && root.active-wallpaper-has-info-url && !root.show-settings && !root.user-command-pending;
+  private property <bool> active-remove-commandable: root.active-wallpaper-commandable && !root.show-settings && !root.user-command-pending;
+  private property <bool> settings-openable: !root.show-settings && (root.settings-operation-pending || root.settings-owned-external-action-pending || !root.user-command-pending);
+  private property <string> active-context-label: !root.has-active-wallpaper
+    ? (root.summary-action-feedback-text != "" ? @tr("STATUS") : @tr("CURRENT WALLPAPER"))
+    : root.summary-action-feedback-text != ""
+      ? root.summary-action-feedback-text
+      : root.favorites-only-enabled && root.has-selection && !root.selected-wallpaper.favorite
+        ? @tr("NOT IN FAVORITES")
+      : (root.has-selection ? @tr("SELECTED WALLPAPER") : @tr("CURRENT WALLPAPER"));
+  private property <bool> has-visible-wallpapers: root.favorites-only-enabled ? root.favorite-wallpapers.length > 0 : root.wallpapers.length > 0;
+  private property <length> window-padding: 14px;
+  private property <length> raw-workspace-height: root.height - root.window-padding * 2;
+  private property <length> workspace-height: root.raw-workspace-height;
+  private property <length> panel-gap: 14px;
+  private property <length> library-panel-width: 342px;
+  private property <length> min-main-panel-width: 420px;
+  private property <length> panel-padding: 12px;
+  private property <length> panel-spacing: 12px;
+  private property <length> wallpaper-summary-height: 84px;
+  private property <length> wallpaper-summary-text-gap: 4px;
+  private property <int> wallpaper-title-size: 24;
+  private property <length> wallpaper-title-height: 34px;
+  private property <length> wallpaper-detail-height: 22px;
+  private property <length> wallpaper-actions-gap: 8px;
+  private property <length> sync-action-width: 118px;
+  private property <length> wallpaper-actions-content-width: root.sync-action-width
+    + root.preview-tool-height * 3
+    + root.wallpaper-actions-gap * 3
+    + 1px;
+  private property <length> wallpaper-actions-width: root.wallpaper-actions-content-width;
+  private property <length> preview-height: root.workspace-height - root.panel-padding * 2 - root.panel-spacing - root.wallpaper-summary-height;
+  private property <length> preview-tool-height: 40px;
+  private property <length> details-overlay-height: 86px;
+  private property <length> details-overlay-padding-x: 14px;
+  private property <length> details-overlay-padding-y: 10px;
+  private property <length> details-content-height: root.details-overlay-height - root.details-overlay-padding-y * 2;
+  private property <length> details-action-gap: 8px;
+  private property <length> danger-action-width: 132px;
+  private property <length> details-action-width: root.preview-tool-height * 3 + root.danger-action-width + root.details-action-gap * 4 + 1px;
+  private property <length> library-section-spacing: 10px;
+  private property <length> library-header-height: 40px;
+  private property <length> library-header-tool-size: 36px;
+  private property <length> library-header-tool-gap: 8px;
+  private property <length> library-header-tools-width: root.library-header-tool-size * 3 + root.library-header-tool-gap * 3 + 1px;
+  private property <length> library-filter-height: 32px;
+  private property <length> library-list-height: root.workspace-height
+    - root.panel-padding * 2
+    - root.library-header-height
+    - root.library-filter-height
+    - root.library-section-spacing * 3
+    - 1px;
+  private property <int> page-navigation-step: 6;
+  private property <int> edge-navigation-step: 1000000;
+  callback refresh-requested();
+  callback sync-requested();
+  callback clean-cache-requested();
+  callback import-image-requested();
+  callback auto-sync-changed(bool);
+  callback gnome-integration-install-requested();
+  callback gnome-integration-enabled-changed(bool);
+  callback lock-screen-blur-selected(string);
+  callback lock-screen-display-selected(string);
+  callback start-at-login-changed(bool);
+  callback keep-running-in-background-changed(bool);
+  callback automatic-update-checks-changed(bool);
+  callback language-selected(string);
+  callback history-limit-selected(int);
+  callback wallpaper-source-selected(string);
+  callback sync-interval-selected(int);
+  callback theme-selected(string);
+  callback open-data-folder-requested();
+  callback open-favorites-folder-requested();
+  callback open-logs-folder-requested();
+  callback update-check-requested();
+  callback update-release-requested();
+  callback reveal-current-requested();
+  callback favorite-toggled(string, bool);
+  callback wallpaper-export-requested(string);
+  callback wallpaper-info-requested(string);
+  callback wallpaper-reveal-requested(string);
+  callback wallpaper-remove-requested(string);
+  callback wallpaper-selected(WallpaperItem);
+  callback wallpaper-sync-requested(string);
+  callback library-filter-selected(bool);
+  callback action-status-requested(string);
+  callback action-feedback-cleared();
+  callback settings-status-requested(string);
+  callback settings-feedback-cleared();
+  callback wallpaper-navigation-requested(int);
+
+  function clear-remove-confirmation() {
+    root.pending-remove-id = "";
+  }
+
+  function clear-cache-confirmation() {
+    root.pending-clean-cache = false;
+  }
+
+  function clear-confirmations() {
+    root.clear-remove-confirmation();
+    root.clear-cache-confirmation();
+  }
+
+  function clear-action-feedback() {
+    if root.action-feedback-clearable {
+      root.action-feedback-cleared();
+    }
+  }
+
+  function focus-main-workspace() {
+    app-key-scope.focus();
+  }
+
+  function focus-settings-dialog() {
+    settings-modal.focus();
+  }
+
+  function settings-pending-feedback() -> string {
+    return root.clean-cache-pending ? @tr("Clearing cache") : root.settings-save-pending ? @tr("Saving settings") : "";
+  }
+
+  function external-pending-feedback() -> string {
+    return root.action-feedback-text != "" ? root.action-feedback-text : @tr("Opening");
+  }
+
+  function show-current-wallpaper() {
+    if !root.can-show-current-wallpaper {
+      return;
+    }
+
+    if root.has-selection && root.selected-wallpaper.id != root.current-id {
+      root.clear-action-feedback();
+    }
+    root.has-selection = false;
+    root.show-current-details = false;
+    root.clear-remove-confirmation();
+    root.focus-main-workspace();
+  }
+
+  function begin-external-action(message: string, key: string) -> bool {
+    if root.user-command-pending || root.external-action-pending {
+      return false;
+    }
+
+    root.external-action-pending = true;
+    root.external-action-key = key;
+    root.external-action-id = "";
+    if root.show-settings {
+      root.settings-status-requested(message);
+      root.focus-settings-dialog();
+    } else {
+      root.action-status-requested(message);
+    }
+    return true;
+  }
+
+  function begin-settings-save() -> bool {
+    if root.user-command-pending {
+      return false;
+    }
+
+    root.settings-save-pending = true;
+    root.settings-status-requested(@tr("Saving settings"));
+    root.focus-settings-dialog();
+    return true;
+  }
+
+  function begin-clean-cache() -> bool {
+    if root.user-command-pending {
+      return false;
+    }
+
+    root.clean-cache-pending = true;
+    root.settings-status-requested(@tr("Clearing cache"));
+    root.focus-settings-dialog();
+    return true;
+  }
+
+  function select-wallpaper(item: WallpaperItem) {
+    root.wallpaper-selected(item);
+  }
+
+  function select-library-filter(favorites-only: bool) {
+    if root.show-settings || root.library-filter-blocked || root.favorites-only-enabled == favorites-only {
+      return;
+    }
+
+    root.library-filter-selected(favorites-only);
+    root.focus-main-workspace();
+  }
+
+  function reveal-active-wallpaper() {
+    if !root.active-reveal-commandable {
+      return;
+    }
+
+    root.clear-remove-confirmation();
+    if !root.begin-external-action(@tr("Opening file"), "reveal") {
+      return;
+    }
+
+    root.external-action-id = root.active-wallpaper-id;
+    if root.has-selection {
+      root.wallpaper-reveal-requested(root.external-action-id);
+    } else {
+      root.reveal-current-requested();
+    }
+    root.focus-main-workspace();
+  }
+
+  function export-active-wallpaper() {
+    if !root.active-export-commandable {
+      return;
+    }
+
+    root.clear-remove-confirmation();
+    if !root.begin-external-action(@tr("Opening export dialog"), "export") {
+      return;
+    }
+
+    root.external-action-id = root.active-wallpaper-id;
+    root.wallpaper-export-requested(root.external-action-id);
+    root.focus-main-workspace();
+  }
+
+  function open-active-wallpaper-info() {
+    if !root.active-info-commandable {
+      return;
+    }
+
+    root.clear-remove-confirmation();
+    if !root.begin-external-action(@tr("Opening web page"), "web") {
+      return;
+    }
+
+    root.external-action-id = root.active-wallpaper-id;
+    root.wallpaper-info-requested(root.external-action-id);
+    root.focus-main-workspace();
+  }
+
+  function request-favorite-toggle(id: string, favorite: bool) {
+    if id == "" || root.favorite-command-blocked {
+      return;
+    }
+
+    root.clear-remove-confirmation();
+    root.action-status-requested(favorite ? @tr("Adding favorite") : @tr("Removing favorite"));
+    root.favorite-pending-id = id;
+    root.favorite-toggled(id, favorite);
+    root.focus-main-workspace();
+  }
+
+  function toggle-active-favorite(favorite: bool) {
+    if root.active-wallpaper-favorite-commandable {
+      root.request-favorite-toggle(root.active-wallpaper-id, favorite);
+    }
+  }
+
+  function sync-active-wallpaper() {
+    root.clear-remove-confirmation();
+    if root.active-sync-commandable {
+      root.sync-pending = true;
+      root.sync-pending-id = root.active-wallpaper-id;
+      root.action-status-requested(@tr("Applying wallpaper"));
+      if root.has-selection {
+        root.wallpaper-sync-requested(root.active-wallpaper-id);
+      } else {
+        root.sync-requested();
+      }
+      root.focus-main-workspace();
+    }
+  }
+
+  function request-active-wallpaper-removal() {
+    if !root.active-remove-commandable {
+      return;
+    }
+
+    if root.pending-remove-active {
+      root.removing-wallpaper-id = root.active-wallpaper-id;
+      root.wallpaper-remove-requested(root.active-wallpaper-id);
+      root.clear-remove-confirmation();
+      root.show-current-details = false;
+      root.action-status-requested(@tr("Removing wallpaper"));
+      root.focus-main-workspace();
+    } else {
+      root.show-current-details = true;
+      root.pending-remove-id = root.active-wallpaper-id;
+    }
+  }
+
+  function close-settings() {
+    if root.settings-operation-pending {
+      return;
+    }
+
+    if root.settings-owned-external-action-pending && root.settings-feedback-text != "" {
+      root.action-status-requested(root.settings-feedback-text);
+    }
+
+    root.show-settings = false;
+    root.clear-cache-confirmation();
+    root.settings-feedback-cleared();
+    root.focus-main-workspace();
+  }
+
+  function open-settings() {
+    root.clear-confirmations();
+    root.clear-action-feedback();
+    root.show-settings = true;
+    if root.settings-operation-pending {
+      root.settings-status-requested(root.settings-pending-feedback());
+    } else if root.settings-owned-external-action-pending {
+      root.settings-status-requested(root.external-pending-feedback());
+    } else {
+      root.settings-feedback-cleared();
+    }
+    root.focus-settings-dialog();
+  }
+
+  function handle-escape() -> bool {
+    if root.show-settings {
+      if root.pending-clean-cache {
+        root.clear-cache-confirmation();
+      } else if !root.settings-operation-pending {
+        root.close-settings();
+      }
+      return true;
+    }
+
+    if root.pending-remove-id != "" {
+      root.clear-remove-confirmation();
+      return true;
+    }
+
+    if root.show-current-details {
+      root.show-current-details = false;
+      return true;
+    }
+
+    if root.has-selection && root.can-show-current-wallpaper {
+      root.show-current-wallpaper();
+      return true;
+    }
+
+    if root.action-feedback-clearable {
+      root.clear-action-feedback();
+      return true;
+    }
+
+    return false;
+  }
+
+  function request-refresh() {
+    if !root.library-commandable {
+      return;
+    }
+
+    root.clear-confirmations();
+    root.refresh-pending = true;
+    root.action-status-requested(@tr("Refreshing library"));
+    root.refresh-requested();
+    root.focus-main-workspace();
+  }
+
+  function request-import() {
+    if !root.library-commandable {
+      return;
+    }
+
+    root.clear-confirmations();
+    root.import-pending = true;
+    root.action-status-requested(@tr("Opening import dialog"));
+    root.import-image-requested();
+    root.focus-main-workspace();
+  }
+
+  function shortcut-toggle-details() {
+    if root.details-commandable {
+      if root.show-current-details {
+        root.clear-remove-confirmation();
+      }
+      root.show-current-details = !root.show-current-details;
+    }
+  }
+
+  function shortcut-toggle-favorite() {
+    if root.active-favorite-commandable {
+      root.toggle-active-favorite(!root.active-wallpaper-favorite);
+    }
+  }
+
+  function shortcut-show-current() {
+    if root.has-selection && root.current-commandable {
+      root.show-current-wallpaper();
+    }
+  }
+
+  Rectangle {
+    background: SpotlitTheme.page(root.dark-theme);
+
+    app-key-scope := FocusScope {
+      width: parent.width;
+      height: parent.height;
+      focus-on-click: true;
+      init => {
+        root.focus-main-workspace();
+      }
+
+      capture-key-pressed(event) => {
+        if event.text == Key.Escape {
+          if root.handle-escape() {
+            return accept;
+          }
+        }
+
+        if !root.show-settings {
+          if root.has-visible-wallpapers && (event.text == Key.DownArrow || event.text == Key.RightArrow) {
+            root.wallpaper-navigation-requested(1);
+            return accept;
+          }
+
+          if root.has-visible-wallpapers && (event.text == Key.UpArrow || event.text == Key.LeftArrow) {
+            root.wallpaper-navigation-requested(-1);
+            return accept;
+          }
+
+          if root.has-visible-wallpapers && event.text == Key.PageDown {
+            root.wallpaper-navigation-requested(root.page-navigation-step);
+            return accept;
+          }
+
+          if root.has-visible-wallpapers && event.text == Key.PageUp {
+            root.wallpaper-navigation-requested(0 - root.page-navigation-step);
+            return accept;
+          }
+
+          if root.has-visible-wallpapers && event.text == Key.End {
+            root.wallpaper-navigation-requested(root.edge-navigation-step);
+            return accept;
+          }
+
+          if root.has-visible-wallpapers && event.text == Key.Home {
+            root.wallpaper-navigation-requested(0 - root.edge-navigation-step);
+            return accept;
+          }
+
+          if (event.text == "r" || event.text == "R") && root.library-commandable {
+            root.request-refresh();
+            return accept;
+          }
+
+          if (event.text == "i" || event.text == "I") && root.library-commandable {
+            root.request-import();
+            return accept;
+          }
+
+          if (event.text == "s" || event.text == "S") && root.active-sync-commandable {
+            root.sync-active-wallpaper();
+            return accept;
+          }
+
+          if (event.text == "f" || event.text == "F") && root.active-favorite-commandable {
+            root.shortcut-toggle-favorite();
+            return accept;
+          }
+
+          if event.text == Key.Delete && root.active-remove-commandable {
+            root.request-active-wallpaper-removal();
+            return accept;
+          }
+
+          if (event.text == "d" || event.text == "D") && root.details-commandable {
+            root.shortcut-toggle-details();
+            return accept;
+          }
+
+          if (event.text == "c" || event.text == "C") && root.has-selection && root.current-commandable {
+            root.shortcut-show-current();
+            return accept;
+          }
+
+          if event.text == Key.Backspace && root.has-selection && root.current-commandable {
+            root.shortcut-show-current();
+            return accept;
+          }
+
+          if event.text == "," && root.settings-openable {
+            root.open-settings();
+            return accept;
+          }
+        }
+
+        return reject;
+      }
+
+    VerticalLayout {
+      width: parent.width;
+      height: parent.height;
+      padding: root.window-padding;
+      spacing: 0px;
+
+      HorizontalLayout {
+        width: parent.width - root.window-padding * 2;
+        height: root.workspace-height;
+        spacing: root.panel-gap;
+
+        Rectangle {
+          min-width: root.min-main-panel-width;
+          horizontal-stretch: 1;
+          border-radius: 8px;
+          border-width: 1px;
+          border-color: SpotlitTheme.border_subtle(root.dark-theme);
+          background: SpotlitTheme.surface(root.dark-theme);
+          clip: true;
+
+          VerticalLayout {
+            width: parent.width;
+            height: parent.height;
+            padding: root.panel-padding;
+            spacing: root.panel-spacing;
+
+            Rectangle {
+              height: root.preview-height;
+              border-radius: 7px;
+              border-width: 1px;
+              border-color: SpotlitTheme.border_subtle(root.dark-theme);
+              background: SpotlitTheme.surface_sunken(root.dark-theme);
+              clip: true;
+
+              Image {
+                visible: root.active-preview-ready;
+                source: root.has-selection ? root.selected-preview : root.current-preview;
+                image-fit: contain;
+                width: parent.width;
+                height: parent.height;
+                accessible-role: AccessibleRole.image;
+                accessible-label: root.has-selection ? @tr("Selected Wallpaper Preview") : @tr("Current Wallpaper Preview");
+                accessible-description: root.active-wallpaper-title + ". " + root.active-wallpaper-details;
+              }
+
+              if root.has-active-wallpaper && !root.active-preview-ready: Rectangle {
+                width: parent.width;
+                height: parent.height;
+                background: SpotlitTheme.clear();
+                accessible-role: AccessibleRole.groupbox;
+                accessible-label: root.active-preview-state;
+                accessible-description: root.active-wallpaper-title;
+
+                VerticalLayout {
+                  x: 28px;
+                  y: parent.height - 112px;
+                  width: parent.width - 56px;
+                  height: 76px;
+                  spacing: 8px;
+
+                  LabelText {
+                    text: @tr("PREVIEW");
+                    dark-theme: root.dark-theme;
+                    height: 14px;
+                  }
+
+                  Heading {
+                    text: root.active-wallpaper-title;
+                    dark-theme: root.dark-theme;
+                    size: 22;
+                    height: 28px;
+                  }
+
+                  BodyText {
+                    text: root.active-preview-state;
+                    dark-theme: root.dark-theme;
+                    height: 18px;
+                  }
+                }
+              }
+
+              if !root.has-active-wallpaper: EmptyState {
+                width: parent.width;
+                height: parent.height;
+                title: @tr("No Wallpaper");
+                body: "";
+                primary-action-text: root.refresh-pending ? @tr("Refreshing") : @tr("Refresh");
+                secondary-action-text: root.import-pending ? @tr("Opening") : @tr("Import");
+                primary-action-enabled: !root.user-command-pending;
+                secondary-action-enabled: !root.user-command-pending;
+                primary-action-busy: root.refresh-pending;
+                secondary-action-busy: root.import-pending;
+                title-size: 24;
+                content-height: 78px;
+                dark-theme: root.dark-theme;
+                primary-action-clicked => {
+                  root.request-refresh();
+                }
+                secondary-action-clicked => {
+                  root.request-import();
+                }
+              }
+
+              if root.show-current-details && root.active-wallpaper-operable: Rectangle {
+                x: 0px;
+                y: parent.height - root.details-overlay-height;
+                width: parent.width;
+                height: root.details-overlay-height;
+                background: SpotlitTheme.preview_overlay(root.dark-theme);
+                accessible-role: AccessibleRole.groupbox;
+                accessible-label: @tr("Wallpaper Details");
+                accessible-description: root.active-wallpaper-image-path;
+
+                Rule {
+                  y: 0px;
+                  width: parent.width;
+                  dark-theme: root.dark-theme;
+                }
+
+                HorizontalLayout {
+                  x: root.details-overlay-padding-x;
+                  y: root.details-overlay-padding-y;
+                  width: parent.width - root.details-overlay-padding-x * 2;
+                  height: root.details-content-height;
+                  spacing: root.details-overlay-padding-y;
+
+                  VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 6px;
+
+                    LabelText {
+                      text: @tr("FILE");
+                      dark-theme: root.dark-theme;
+                      height: 14px;
+                    }
+
+                    BodyText {
+                      text: root.active-wallpaper-image-path;
+                      dark-theme: root.dark-theme;
+                      height: 18px;
+                    }
+                  }
+
+                  Rectangle {
+                    width: root.details-action-width;
+                    height: root.details-content-height;
+                    horizontal-stretch: 0;
+                    background: SpotlitTheme.clear();
+
+                    HorizontalLayout {
+                      y: (parent.height - root.preview-tool-height) / 2;
+                      height: root.preview-tool-height;
+                      spacing: root.details-action-gap;
+                      PreviewToolButton {
+                        icon: @image-url("../../resources/icons/external-link.svg");
+                        label: @tr("Open Wallpaper Info");
+                        tooltip: @tr("Web");
+                        tooltip-width: 42px;
+                        enabled: root.active-info-commandable;
+                        busy: root.active-external-action-pending && root.external-action-key == "web";
+                        dark-theme: root.dark-theme;
+                        clicked => {
+                          root.open-active-wallpaper-info();
+                        }
+                      }
+
+                      PreviewToolButton {
+                        icon: @image-url("../../resources/icons/reveal.svg");
+                        label: @tr("Reveal Wallpaper File");
+                        tooltip: @tr("Reveal");
+                        tooltip-width: 56px;
+                        enabled: root.active-reveal-commandable;
+                        busy: root.active-external-action-pending && root.external-action-key == "reveal";
+                        dark-theme: root.dark-theme;
+                        clicked => {
+                          root.reveal-active-wallpaper();
+                        }
+                      }
+
+                      PreviewToolButton {
+                        icon: @image-url("../../resources/icons/export.svg");
+                        label: @tr("Export Wallpaper");
+                        tooltip: @tr("Export");
+                        tooltip-width: 56px;
+                        enabled: root.active-export-commandable;
+                        busy: root.active-external-action-pending && root.external-action-key == "export";
+                        dark-theme: root.dark-theme;
+                        clicked => {
+                          root.export-active-wallpaper();
+                        }
+                      }
+
+                      ActionSeparator {
+                        height: root.preview-tool-height;
+                        dark-theme: root.dark-theme;
+                      }
+
+                      Button {
+                        text: root.removing-active-wallpaper ? @tr("Removing") : root.pending-remove-active ? @tr("Confirm Remove") : @tr("Remove");
+                        assistive-label: root.removing-active-wallpaper ? @tr("Removing Wallpaper") : root.pending-remove-active ? @tr("Confirm Remove Wallpaper") : @tr("Remove Wallpaper");
+                        assistive-description: root.pending-remove-active ? @tr("Activate again to remove this wallpaper. Press Escape to cancel.") : "";
+                        enabled: root.active-remove-commandable;
+                        busy: root.removing-active-wallpaper;
+                        cancel-enabled: root.pending-remove-active && !root.user-command-pending;
+                        danger: root.pending-remove-active || root.removing-active-wallpaper;
+                        dark-theme: root.dark-theme;
+                        width: root.danger-action-width;
+                        height: root.preview-tool-height;
+                        cancelled => {
+                          root.clear-remove-confirmation();
+                        }
+                        clicked => {
+                          root.request-active-wallpaper-removal();
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+            }
+
+            HorizontalLayout {
+              height: root.wallpaper-summary-height;
+              spacing: root.panel-spacing;
+
+              VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: root.wallpaper-summary-text-gap;
+
+                LabelText {
+                  text: root.active-context-label;
+                  dark-theme: root.dark-theme;
+                  height: 14px;
+                }
+
+                Heading {
+                  text: root.has-active-wallpaper ? root.active-wallpaper-title : @tr("Waiting for wallpaper");
+                  dark-theme: root.dark-theme;
+                  size: root.wallpaper-title-size;
+                  height: root.wallpaper-title-height;
+                }
+
+                BodyText {
+                  text: root.has-active-wallpaper ? root.active-wallpaper-details : root.summary-action-feedback-text;
+                  dark-theme: root.dark-theme;
+                  height: root.wallpaper-detail-height;
+                }
+              }
+
+              Rectangle {
+                width: root.wallpaper-actions-width;
+                height: root.wallpaper-summary-height;
+                horizontal-stretch: 0;
+                background: SpotlitTheme.clear();
+
+                HorizontalLayout {
+                  x: parent.width - root.wallpaper-actions-content-width;
+                  width: root.wallpaper-actions-content-width;
+                  y: (parent.height - root.preview-tool-height) / 2;
+                  height: root.preview-tool-height;
+                  spacing: root.wallpaper-actions-gap;
+
+                  if root.has-selection: PreviewToolButton {
+                    icon: @image-url("../../resources/icons/current.svg");
+                    label: @tr("Show Current Wallpaper");
+                    tooltip: @tr("Current");
+                    tooltip-width: 64px;
+                    enabled: root.current-commandable;
+                    dark-theme: root.dark-theme;
+                    clicked => {
+                      root.show-current-wallpaper();
+                    }
+                  }
+
+                  if !root.has-selection: Rectangle {
+                    width: root.preview-tool-height;
+                    height: root.preview-tool-height;
+                    horizontal-stretch: 0;
+                    background: SpotlitTheme.clear();
+                    accessible-role: none;
+                  }
+
+                  PreviewToolButton {
+                    icon: @image-url("../../resources/icons/info.svg");
+                    label: root.show-current-details ? @tr("Hide Wallpaper Details") : @tr("Show Wallpaper Details");
+                    tooltip: root.show-current-details ? @tr("Hide") : @tr("Details");
+                    tooltip-width: 60px;
+                    enabled: root.details-commandable;
+                    selected: root.show-current-details;
+                    checkable: true;
+                    dark-theme: root.dark-theme;
+                    clicked => {
+                      if root.show-current-details {
+                        root.clear-remove-confirmation();
+                      }
+                      root.show-current-details = !root.show-current-details;
+                    }
+                  }
+
+                  FavoriteButton {
+                    checked: root.active-wallpaper-favorite;
+                    enabled: root.active-favorite-commandable;
+                    busy: root.favorite-pending-id != "" && root.favorite-pending-id == root.active-wallpaper-id;
+                    dark-theme: root.dark-theme;
+                    tooltip-above: true;
+                    toggled(favorite) => {
+                      root.toggle-active-favorite(favorite);
+                    }
+                  }
+
+                  PrimaryActionButton {
+                    icon: @image-url("../../resources/icons/sync.svg");
+                    text: root.active-sync-pending ? @tr("Applying") : @tr("Apply");
+                    assistive-label: root.active-sync-pending ? @tr("Applying Wallpaper") : @tr("Apply Wallpaper");
+                    enabled: root.active-sync-commandable;
+                    busy: root.active-sync-pending;
+                    dark-theme: root.dark-theme;
+                    width: root.sync-action-width;
+                    height: root.preview-tool-height;
+                    text-width: 68px;
+                    clicked => {
+                      root.sync-active-wallpaper();
+                    }
+                  }
+                }
+              }
+            }
+
+          }
+        }
+
+        Rectangle {
+          min-width: root.library-panel-width;
+          preferred-width: root.library-panel-width;
+          max-width: root.library-panel-width;
+          horizontal-stretch: 0;
+          border-radius: 8px;
+          border-width: 1px;
+          border-color: SpotlitTheme.border_subtle(root.dark-theme);
+          background: SpotlitTheme.surface(root.dark-theme);
+          clip: true;
+
+          VerticalLayout {
+            width: parent.width;
+            height: parent.height;
+            padding: root.panel-padding;
+            spacing: root.library-section-spacing;
+
+            HorizontalLayout {
+              height: root.library-header-height;
+              spacing: 8px;
+
+              VerticalLayout {
+                spacing: 2px;
+                horizontal-stretch: 1;
+
+                Heading {
+                  text: @tr("Library");
+                  dark-theme: root.dark-theme;
+                  size: 18;
+                  height: 22px;
+                }
+
+                BodyText {
+                  text: root.favorites-only-enabled ? root.favorite-summary : root.library-summary;
+                  dark-theme: root.dark-theme;
+                  height: 16px;
+                }
+              }
+
+              Rectangle {
+                width: root.library-header-tools-width;
+                height: root.library-header-height;
+                horizontal-stretch: 0;
+                background: SpotlitTheme.clear();
+
+                HorizontalLayout {
+                  y: (parent.height - root.library-header-tool-size) / 2;
+                  height: root.library-header-tool-size;
+                  spacing: root.library-header-tool-gap;
+
+                  LibraryHeaderButton {
+                    icon: @image-url("../../resources/icons/refresh.svg");
+                    label: @tr("Refresh Library");
+                    tooltip: root.refresh-pending ? @tr("Refreshing") : @tr("Refresh");
+                    tooltip-width: root.refresh-pending ? 78px : 62px;
+                    enabled: root.library-commandable;
+                    busy: root.refresh-pending;
+                    dark-theme: root.dark-theme;
+                    width: root.library-header-tool-size;
+                    height: root.library-header-tool-size;
+                    clicked => {
+                      root.request-refresh();
+                    }
+                  }
+
+                  LibraryHeaderButton {
+                    icon: @image-url("../../resources/icons/import.svg");
+                    label: @tr("Import Wallpaper");
+                    tooltip: root.import-pending ? @tr("Opening") : @tr("Import");
+                    tooltip-width: root.import-pending ? 62px : 56px;
+                    enabled: root.library-commandable;
+                    busy: root.import-pending;
+                    dark-theme: root.dark-theme;
+                    width: root.library-header-tool-size;
+                    height: root.library-header-tool-size;
+                    clicked => {
+                      root.request-import();
+                    }
+                  }
+
+                  ActionSeparator {
+                    height: root.library-header-tool-size;
+                    line-height: 20px;
+                    dark-theme: root.dark-theme;
+                  }
+
+                  LibraryHeaderButton {
+                    icon: @image-url("../../resources/icons/settings.svg");
+                    label: @tr("Settings");
+                    tooltip: @tr("Settings");
+                    tooltip-width: 64px;
+                    tooltip-align-end: true;
+                    enabled: root.settings-openable;
+                    busy: root.settings-operation-pending || root.settings-owned-external-action-pending;
+                    clickable-while-busy: true;
+                    dark-theme: root.dark-theme;
+                    width: root.library-header-tool-size;
+                    height: root.library-header-tool-size;
+                    clicked => {
+                      root.open-settings();
+                    }
+                  }
+                }
+              }
+            }
+
+            HorizontalLayout {
+              height: root.library-filter-height;
+              spacing: 8px;
+
+              FilterTabs {
+                favorites-only: root.favorites-only-enabled;
+                enabled: root.library-filter-commandable;
+                dark-theme: root.dark-theme;
+                changed(favorites-only) => {
+                  root.select-library-filter(favorites-only);
+                }
+              }
+
+              Rectangle {
+                background: SpotlitTheme.clear();
+              }
+            }
+
+            Rule {
+              dark-theme: root.dark-theme;
+            }
+
+            if !root.favorites-only-enabled && root.wallpapers.length > 0: WallpaperList {
+              items: root.wallpapers;
+              assistive-label: @tr("All Wallpapers");
+              enabled: !root.show-settings;
+              favorite-action-enabled: !root.favorite-command-blocked;
+              favorite-pending-id: root.favorite-pending-id;
+              removing-wallpaper-id: root.removing-wallpaper-id;
+              dark-theme: root.dark-theme;
+              selected-id: root.has-selection ? root.selected-wallpaper.id : root.current-id;
+              current-id: root.current-id;
+              width: root.library-panel-width - root.panel-padding * 2;
+              height: root.library-list-height;
+              selected(item) => {
+                root.select-wallpaper(item);
+              }
+              favorite-toggled(id, favorite) => {
+                root.request-favorite-toggle(id, favorite);
+              }
+            }
+
+            if !root.favorites-only-enabled && root.wallpapers.length == 0: EmptyState {
+              title: @tr("No Wallpapers");
+              body: "";
+              primary-action-text: root.refresh-pending ? @tr("Refreshing") : @tr("Refresh");
+              secondary-action-text: root.import-pending ? @tr("Opening") : @tr("Import");
+              primary-action-enabled: root.library-commandable;
+              secondary-action-enabled: root.library-commandable;
+              primary-action-busy: root.refresh-pending;
+              secondary-action-busy: root.import-pending;
+              dark-theme: root.dark-theme;
+              content-height: 66px;
+              width: root.library-panel-width - root.panel-padding * 2;
+              height: root.library-list-height;
+              primary-action-clicked => {
+                root.request-refresh();
+              }
+              secondary-action-clicked => {
+                root.request-import();
+              }
+            }
+
+            if root.favorites-only-enabled && root.favorite-wallpapers.length > 0: WallpaperList {
+              items: root.favorite-wallpapers;
+              assistive-label: @tr("Favorite Wallpapers");
+              enabled: !root.show-settings;
+              favorite-action-enabled: !root.favorite-command-blocked;
+              favorite-pending-id: root.favorite-pending-id;
+              removing-wallpaper-id: root.removing-wallpaper-id;
+              dark-theme: root.dark-theme;
+              selected-id: root.has-selection ? root.selected-wallpaper.id : root.current-id;
+              current-id: root.current-id;
+              width: root.library-panel-width - root.panel-padding * 2;
+              height: root.library-list-height;
+              selected(item) => {
+                root.select-wallpaper(item);
+              }
+              favorite-toggled(id, favorite) => {
+                root.request-favorite-toggle(id, favorite);
+              }
+            }
+
+            if root.favorites-only-enabled && root.favorite-wallpapers.length == 0: EmptyState {
+              title: @tr("No Favorites");
+              body: "";
+              primary-action-text: @tr("Show All");
+              primary-action-enabled: root.library-filter-commandable;
+              dark-theme: root.dark-theme;
+              content-height: 66px;
+              width: root.library-panel-width - root.panel-padding * 2;
+              height: root.library-list-height;
+              primary-action-clicked => {
+                if root.library-filter-blocked {
+                  return;
+                }
+                root.select-library-filter(false);
+              }
+            }
+          }
+          }
+        }
+      }
+    }
+
+
+    settings-modal := SettingsModal {
+      width: parent.width;
+      height: parent.height;
+      open: root.show-settings;
+      active-settings-page <=> root.settings-page;
+      pending-clean-cache <=> root.pending-clean-cache;
+      clean-cache-pending <=> root.clean-cache-pending;
+      external-action-pending: root.settings-owned-external-action-pending;
+      external-action-key: root.settings-owned-external-action-pending ? root.external-action-key : "";
+      settings-save-pending: root.settings-save-pending;
+      feedback-text: root.effective-settings-feedback-text;
+      show-diagnostics <=> root.show-diagnostics;
+      diagnostics-enabled: root.diagnostics-enabled;
+      dark-theme: root.dark-theme;
+      auto-sync-enabled: root.auto-sync-enabled;
+      apply-target-text: root.apply-target-text;
+      lock-screen-apply-available: root.lock-screen-apply-available;
+      gnome-integration-visible: root.gnome-integration-visible;
+      gnome-integration-state-text: root.gnome-integration-state-text;
+      lock-screen-blur-text: root.lock-screen-blur-text;
+      lock-screen-display-text: root.lock-screen-display-text;
+      start-at-login-enabled: root.start-at-login-enabled;
+      keep-running-in-background-enabled: root.keep-running-in-background-enabled;
+      automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+      language-code: root.language-code;
+      wallpaper-source-text: root.wallpaper-source-text;
+      sync-interval-text: root.sync-interval-text;
+      history-limit-text: root.history-limit-text;
+      theme-text: root.theme-text;
+      update-status-text: root.update-status-text;
+      update-check-pending: root.update-check-pending;
+      update-release-available: root.update-release-available;
+      diagnostics-startup: root.diagnostics-startup;
+      diagnostics-first-scan: root.diagnostics-first-scan;
+      diagnostics-first-snapshot: root.diagnostics-first-snapshot;
+      diagnostics-current-preview: root.diagnostics-current-preview;
+      diagnostics-thumbnails: root.diagnostics-thumbnails;
+      close-requested => { root.close-settings(); }
+      clean-cache-requested => {
+        if root.begin-clean-cache() {
+          root.clean-cache-requested();
+        }
+      }
+      auto-sync-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.auto-sync-changed(enabled);
+        }
+      }
+      gnome-integration-install-requested => {
+        if root.begin-settings-save() {
+          root.gnome-integration-install-requested();
+        }
+      }
+      gnome-integration-enabled-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.gnome-integration-enabled-changed(enabled);
+        }
+      }
+      lock-screen-blur-selected(mode) => {
+        if root.begin-settings-save() {
+          root.lock-screen-blur-selected(mode);
+        }
+      }
+      lock-screen-display-selected(mode) => {
+        if root.begin-settings-save() {
+          root.lock-screen-display-selected(mode);
+        }
+      }
+      wallpaper-source-selected(source) => {
+        if root.begin-settings-save() {
+          root.wallpaper-source-selected(source);
+        }
+      }
+      start-at-login-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.start-at-login-changed(enabled);
+        }
+      }
+      keep-running-in-background-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.keep-running-in-background-changed(enabled);
+        }
+      }
+      automatic-update-checks-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.automatic-update-checks-changed(enabled);
+        }
+      }
+      language-selected(language) => {
+        if root.begin-settings-save() {
+          root.language-selected(language);
+        }
+      }
+      history-limit-selected(limit) => {
+        if root.begin-settings-save() {
+          root.history-limit-selected(limit);
+        }
+      }
+      sync-interval-selected(minutes) => {
+        if root.begin-settings-save() {
+          root.sync-interval-selected(minutes);
+        }
+      }
+      theme-selected(theme) => {
+        if root.begin-settings-save() {
+          root.theme-selected(theme);
+        }
+      }
+      open-data-folder-requested => {
+        if root.begin-external-action(@tr("Opening data folder"), "data-folder") {
+          root.open-data-folder-requested();
+        }
+      }
+      open-favorites-folder-requested => {
+        if root.begin-external-action(@tr("Opening favorites folder"), "favorites-folder") {
+          root.open-favorites-folder-requested();
+        }
+      }
+      open-logs-folder-requested => {
+        if root.begin-external-action(@tr("Opening logs folder"), "logs-folder") {
+          root.open-logs-folder-requested();
+        }
+      }
+      update-check-requested => {
+        root.update-check-requested();
+      }
+      update-release-requested => {
+        if root.begin-external-action(@tr("Opening release page"), "update-release") {
+          root.update-release-requested();
+        }
+      }
+    }
+}
+}
+
+export component SpotlitTray inherits SystemTrayIcon {
+  icon: @image-url("../../resources/icons/spotlit-logo.svg");
+  tooltip: @tr("Spotlit");
+  title: @tr("Spotlit");
+
+  callback activate-requested();
+  callback open-data-folder-requested();
+  callback lock-workstation-requested();
+  callback quit-requested();
+
+  clicked => {
+    root.activate-requested();
+  }
+
+  Menu {
+    MenuItem {
+      title: @tr("Open Spotlit");
+      activated => {
+        root.activate-requested();
+      }
+    }
+
+    MenuItem {
+      title: @tr("Open Data Folder");
+      activated => {
+        root.open-data-folder-requested();
+      }
+    }
+
+    MenuItem {
+      title: @tr("Lock Workstation");
+      activated => {
+        root.lock-workstation-requested();
+      }
+    }
+
+    MenuSeparator { }
+
+    MenuItem {
+      title: @tr("Quit");
+      activated => {
+        root.quit-requested();
+      }
+    }
+  }
+}

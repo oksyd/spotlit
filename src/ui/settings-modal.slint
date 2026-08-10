@@ -1,0 +1,1353 @@
+import { AboutSlint, ScrollView } from "std-widgets.slint";
+import {
+  BodyText,
+  Button,
+  FolderActionButton,
+  Heading,
+  MetricRow,
+  ModalHeaderButton,
+  Rule,
+  Segment,
+  SegmentGroup,
+  SettingRow,
+  SettingsSection,
+  SettingsNavButton,
+  ToggleRow,
+} from "foundation.slint";
+import { SpotlitTheme } from "theme.slint";
+
+component SettingsPageContent inherits VerticalLayout {
+  in property <string> active-page: "wallpaper";
+  in property <length> page-width: 460px;
+  in-out property <bool> pending-clean-cache: false;
+  in-out property <bool> show-diagnostics: false;
+  in property <bool> clean-cache-pending: false;
+  in property <bool> external-action-pending: false;
+  in property <string> external-action-key: "";
+  in property <bool> diagnostics-enabled: false;
+  in property <bool> dark-theme: false;
+  in property <bool> auto-sync-enabled: false;
+  in property <string> apply-target-text: "Lock Screen";
+  in property <bool> lock-screen-apply-available: true;
+  in property <bool> gnome-integration-visible: false;
+  in property <string> gnome-integration-state-text: "Not Installed";
+  in property <string> lock-screen-blur-text: "System";
+  in property <string> lock-screen-display-text: "System";
+  in property <bool> start-at-login-enabled: false;
+  in property <bool> keep-running-in-background-enabled: true;
+  in property <bool> automatic-update-checks-enabled: true;
+  in property <string> language-code: "system";
+  in property <string> wallpaper-source-text: "Current Desktop";
+  in property <string> sync-interval-text: "30 minutes";
+  in property <string> history-limit-text: "250 wallpapers";
+  in property <string> theme-text: "System";
+  in property <string> update-status-text: "Not checked";
+  in property <bool> update-check-pending: false;
+  in property <bool> update-release-available: false;
+  in property <string> diagnostics-startup: "-";
+  in property <string> diagnostics-first-scan: "-";
+  in property <string> diagnostics-first-snapshot: "-";
+  in property <string> diagnostics-current-preview: "-";
+  in property <string> diagnostics-thumbnails: "-";
+  in property <bool> controls-enabled: true;
+  in property <bool> folder-actions-enabled: true;
+  in property <length> sync-segment-width: 82px;
+  in property <length> sync-group-width: 254px;
+  in property <length> target-value-width: 184px;
+  in property <length> source-current-width: 86px;
+  in property <length> source-library-width: 78px;
+  in property <length> source-favorites-width: 94px;
+  in property <length> source-group-width: 266px;
+  in property <length> history-option-width: 64px;
+  in property <length> history-unlimited-width: 96px;
+  in property <length> history-group-width: 298px;
+  in property <length> theme-system-width: 86px;
+  in property <length> theme-option-width: 72px;
+  in property <length> theme-group-width: 238px;
+  in property <length> language-option-width: 78px;
+  in property <length> language-group-width: 318px;
+  in property <length> cache-action-width: 128px;
+  callback clear-cache-confirmation-requested();
+  callback clean-cache-requested();
+  callback auto-sync-changed(bool);
+  callback gnome-integration-install-requested();
+  callback gnome-integration-enabled-changed(bool);
+  callback lock-screen-blur-selected(string);
+  callback lock-screen-display-selected(string);
+  callback wallpaper-source-selected(string);
+  callback start-at-login-changed(bool);
+  callback keep-running-in-background-changed(bool);
+  callback automatic-update-checks-changed(bool);
+  callback language-selected(string);
+  callback history-limit-selected(int);
+  callback sync-interval-selected(int);
+  callback theme-selected(string);
+  callback open-data-folder-requested();
+  callback open-favorites-folder-requested();
+  callback open-logs-folder-requested();
+  callback update-check-requested();
+  callback update-release-requested();
+
+  pure function localized-state(value: string) -> string {
+    if value == "Unsupported" { return @tr("Unsupported"); }
+    if value == "Unavailable" { return @tr("Unavailable"); }
+    if value == "Not Installed" { return @tr("Not Installed"); }
+    if value == "Restart Required" { return @tr("Restart Required"); }
+    if value == "Disabled" { return @tr("Disabled"); }
+    if value == "Ready" { return @tr("Ready"); }
+    return value;
+  }
+
+  width: root.page-width;
+  spacing: 14px;
+
+  if root.active-page == "wallpaper": SettingsSection {
+    width: root.page-width;
+    title: @tr("WALLPAPER");
+    dark-theme: root.dark-theme;
+
+    ToggleRow {
+      checked: root.auto-sync-enabled;
+      text: @tr("Auto Apply");
+      enabled: root.controls-enabled && root.lock-screen-apply-available;
+      dark-theme: root.dark-theme;
+      toggled(enabled) => {
+        root.clear-cache-confirmation-requested();
+        root.auto-sync-changed(enabled);
+      }
+    }
+
+    SettingRow {
+      label: @tr("Target");
+      row-height: 30px;
+      dark-theme: root.dark-theme;
+
+      BodyText {
+        text: root.apply-target-text;
+        dark-theme: root.dark-theme;
+        width: root.target-value-width;
+        horizontal-alignment: right;
+      }
+    }
+
+    SettingRow {
+      label: @tr("Source");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Wallpaper Source");
+        dark-theme: root.dark-theme;
+        width: root.source-group-width;
+
+        Segment {
+          text: @tr("Current");
+          context: @tr("Wallpaper Source");
+          selected: root.wallpaper-source-text == "Current Desktop";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.source-current-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.wallpaper-source-selected("current_desktop");
+          }
+        }
+
+        Segment {
+          text: @tr("Library");
+          context: @tr("Wallpaper Source");
+          selected: root.wallpaper-source-text == "Library";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.source-library-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.wallpaper-source-selected("random_library");
+          }
+        }
+
+        Segment {
+          text: @tr("Favorites");
+          context: @tr("Wallpaper Source");
+          selected: root.wallpaper-source-text == "Favorites";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.source-favorites-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.wallpaper-source-selected("random_favorites");
+          }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Sync Interval");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Sync interval");
+        dark-theme: root.dark-theme;
+        width: root.sync-group-width;
+
+        Segment {
+          text: @tr("15 min");
+          context: @tr("Sync interval");
+          selected: root.sync-interval-text == "15 minutes";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.sync-interval-selected(15);
+          }
+        }
+
+        Segment {
+          text: @tr("30 min");
+          context: @tr("Sync interval");
+          selected: root.sync-interval-text == "30 minutes";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.sync-interval-selected(30);
+          }
+        }
+
+        Segment {
+          text: @tr("60 min");
+          context: @tr("Sync interval");
+          selected: root.sync-interval-text == "60 minutes";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.sync-interval-selected(60);
+          }
+        }
+      }
+    }
+  }
+
+  if root.active-page == "wallpaper" && root.gnome-integration-visible: SettingsSection {
+    width: root.page-width;
+    title: @tr("GNOME LOCK SCREEN");
+    dark-theme: root.dark-theme;
+
+    SettingRow {
+      label: @tr("Extension");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      BodyText {
+        text: root.localized-state(root.gnome-integration-state-text);
+        dark-theme: root.dark-theme;
+        width: root.gnome-integration-state-text == "Restart Required" ? 184px : 104px;
+        horizontal-alignment: right;
+      }
+
+      if root.gnome-integration-state-text == "Not Installed": Button {
+        text: @tr("Install");
+        assistive-label: @tr("Install GNOME Lock Screen Extension");
+        enabled: root.controls-enabled;
+        dark-theme: root.dark-theme;
+        width: 76px;
+        clicked => { root.gnome-integration-install-requested(); }
+      }
+
+      if root.gnome-integration-state-text == "Disabled": Button {
+        text: @tr("Enable");
+        assistive-label: @tr("Enable GNOME Lock Screen Extension");
+        enabled: root.controls-enabled;
+        dark-theme: root.dark-theme;
+        width: 76px;
+        clicked => { root.gnome-integration-enabled-changed(true); }
+      }
+
+      if root.gnome-integration-state-text == "Ready": Button {
+        text: @tr("Disable");
+        assistive-label: @tr("Disable GNOME Lock Screen Extension");
+        enabled: root.controls-enabled;
+        dark-theme: root.dark-theme;
+        width: 76px;
+        clicked => { root.gnome-integration-enabled-changed(false); }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Blur");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Lock Screen Blur");
+        dark-theme: root.dark-theme;
+        width: root.sync-group-width;
+
+        Segment {
+          text: @tr("System");
+          context: @tr("Lock Screen Blur");
+          selected: root.lock-screen-blur-text == "System";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-blur-selected("system"); }
+        }
+
+        Segment {
+          text: @tr("Soft");
+          context: @tr("Lock Screen Blur");
+          selected: root.lock-screen-blur-text == "Soft";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-blur-selected("soft"); }
+        }
+
+        Segment {
+          text: @tr("Clear");
+          context: @tr("Lock Screen Blur");
+          selected: root.lock-screen-blur-text == "Clear";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-blur-selected("clear"); }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Display");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Lock Screen Display");
+        dark-theme: root.dark-theme;
+        width: root.sync-group-width;
+
+        Segment {
+          text: @tr("System");
+          context: @tr("Lock Screen Display");
+          selected: root.lock-screen-display-text == "System";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-display-selected("system"); }
+        }
+
+        Segment {
+          text: @tr("Plugged In");
+          context: @tr("Lock Screen Display");
+          selected: root.lock-screen-display-text == "Plugged In";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-display-selected("keep-on-ac"); }
+        }
+
+        Segment {
+          text: @tr("Always");
+          context: @tr("Lock Screen Display");
+          selected: root.lock-screen-display-text == "Always";
+          enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready";
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.sync-segment-width;
+          clicked => { root.lock-screen-display-selected("keep-on"); }
+        }
+      }
+    }
+  }
+
+  if root.active-page == "app": SettingsSection {
+    width: root.page-width;
+    title: @tr("APP");
+    dark-theme: root.dark-theme;
+
+    ToggleRow {
+      checked: root.start-at-login-enabled;
+      text: @tr("Start at Login");
+      enabled: root.controls-enabled;
+      dark-theme: root.dark-theme;
+      toggled(enabled) => {
+        root.clear-cache-confirmation-requested();
+        root.start-at-login-changed(enabled);
+      }
+    }
+
+    ToggleRow {
+      checked: root.keep-running-in-background-enabled;
+      text: @tr("Keep Running in Background");
+      enabled: root.controls-enabled;
+      dark-theme: root.dark-theme;
+      toggled(enabled) => {
+        root.clear-cache-confirmation-requested();
+        root.keep-running-in-background-changed(enabled);
+      }
+    }
+
+    ToggleRow {
+      checked: root.automatic-update-checks-enabled;
+      text: @tr("Automatic Update Checks");
+      enabled: root.controls-enabled;
+      dark-theme: root.dark-theme;
+      toggled(enabled) => {
+        root.clear-cache-confirmation-requested();
+        root.automatic-update-checks-changed(enabled);
+      }
+    }
+
+    SettingRow {
+      label: @tr("Theme");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Theme");
+        dark-theme: root.dark-theme;
+        width: root.theme-group-width;
+
+        Segment {
+          text: @tr("System");
+          context: @tr("Theme");
+          selected: root.theme-text != "Light" && root.theme-text != "Dark";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.theme-system-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.theme-selected("system");
+          }
+        }
+
+        Segment {
+          text: @tr("Light");
+          context: @tr("Theme");
+          selected: root.theme-text == "Light";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.theme-option-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.theme-selected("light");
+          }
+        }
+
+        Segment {
+          text: @tr("Dark");
+          context: @tr("Theme");
+          selected: root.theme-text == "Dark";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.theme-option-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.theme-selected("dark");
+          }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Language");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Interface Language");
+        dark-theme: root.dark-theme;
+        width: root.language-group-width;
+
+        Segment {
+          text: @tr("System");
+          context: @tr("Interface Language");
+          selected: root.language-code == "system";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.language-option-width;
+          clicked => { root.language-selected("system"); }
+        }
+
+        Segment {
+          text: @tr("English");
+          context: @tr("Interface Language");
+          selected: root.language-code == "en";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.language-option-width;
+          clicked => { root.language-selected("en"); }
+        }
+
+        Segment {
+          text: @tr("Chinese");
+          context: @tr("Interface Language");
+          selected: root.language-code == "zh-CN";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.language-option-width;
+          clicked => { root.language-selected("zh-CN"); }
+        }
+
+        Segment {
+          text: @tr("German");
+          context: @tr("Interface Language");
+          selected: root.language-code == "de";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.language-option-width;
+          clicked => { root.language-selected("de"); }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Updates");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      BodyText {
+        text: root.update-status-text;
+        dark-theme: root.dark-theme;
+        width: 196px;
+        horizontal-alignment: right;
+      }
+
+      Button {
+        text: root.update-release-available ? @tr("View") : @tr("Check");
+        assistive-label: root.update-release-available ? @tr("View Latest Spotlit Release") : @tr("Check for Spotlit Updates");
+        enabled: root.controls-enabled && !root.external-action-pending;
+        busy: root.update-check-pending || (root.external-action-pending && root.external-action-key == "update-release");
+        dark-theme: root.dark-theme;
+        width: 76px;
+        clicked => {
+          if root.update-release-available {
+            root.update-release-requested();
+          } else {
+            root.update-check-requested();
+          }
+        }
+      }
+    }
+
+    if root.diagnostics-enabled: SettingRow {
+      label: @tr("Diagnostics");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      Button {
+        text: @tr("Metrics");
+        assistive-label: @tr("Diagnostics Metrics");
+        selected: root.show-diagnostics;
+        checkable: true;
+        enabled: root.controls-enabled;
+        dark-theme: root.dark-theme;
+        width: 86px;
+        clicked => {
+          root.clear-cache-confirmation-requested();
+          root.show-diagnostics = !root.show-diagnostics;
+        }
+      }
+    }
+
+    if root.diagnostics-enabled && root.show-diagnostics: VerticalLayout {
+      width: root.page-width;
+      spacing: 2px;
+
+      MetricRow {
+        label: @tr("Startup");
+        value: root.diagnostics-startup;
+        dark-theme: root.dark-theme;
+      }
+
+      MetricRow {
+        label: @tr("First Scan");
+        value: root.diagnostics-first-scan;
+        dark-theme: root.dark-theme;
+      }
+
+      MetricRow {
+        label: @tr("First Snapshot");
+        value: root.diagnostics-first-snapshot;
+        dark-theme: root.dark-theme;
+      }
+
+      MetricRow {
+        label: @tr("Main Preview");
+        value: root.diagnostics-current-preview;
+        dark-theme: root.dark-theme;
+      }
+
+      MetricRow {
+        label: @tr("Thumbnails");
+        value: root.diagnostics-thumbnails;
+        dark-theme: root.dark-theme;
+      }
+    }
+  }
+
+  if root.active-page == "app": SettingsSection {
+    width: root.page-width;
+    title: @tr("ABOUT");
+    dark-theme: root.dark-theme;
+
+    AboutSlint {
+      width: root.page-width;
+      height: 108px;
+    }
+  }
+
+  if root.active-page == "storage": SettingsSection {
+    width: root.page-width;
+    title: @tr("STORAGE");
+    dark-theme: root.dark-theme;
+
+    SettingRow {
+      label: @tr("Saved Limit");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      SegmentGroup {
+        label: @tr("Saved Wallpaper Limit");
+        dark-theme: root.dark-theme;
+        width: root.history-group-width;
+
+        Segment {
+          text: @tr("100");
+          context: @tr("Saved Wallpaper Limit");
+          selected: root.history-limit-text == "100 wallpapers";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.history-option-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.history-limit-selected(100);
+          }
+        }
+
+        Segment {
+          text: @tr("250");
+          context: @tr("Saved Wallpaper Limit");
+          selected: root.history-limit-text == "250 wallpapers";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.history-option-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.history-limit-selected(250);
+          }
+        }
+
+        Segment {
+          text: @tr("500");
+          context: @tr("Saved Wallpaper Limit");
+          selected: root.history-limit-text == "500 wallpapers";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.history-option-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.history-limit-selected(500);
+          }
+        }
+
+        Segment {
+          text: @tr("Unlimited");
+          context: @tr("Saved Wallpaper Limit");
+          selected: root.history-limit-text == "Unlimited";
+          enabled: root.controls-enabled;
+          dark-theme: root.dark-theme;
+          grouped: true;
+          width: root.history-unlimited-width;
+          clicked => {
+            root.clear-cache-confirmation-requested();
+            root.history-limit-selected(0);
+          }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Folders");
+      row-height: 36px;
+      dark-theme: root.dark-theme;
+
+      FolderActionButton {
+        icon: @image-url("../../resources/icons/data-folder.svg");
+        label: @tr("Open Data Folder");
+        tooltip: @tr("Data Folder");
+        tooltip-width: 78px;
+        enabled: root.folder-actions-enabled;
+        busy: root.external-action-pending && root.external-action-key == "data-folder";
+        dark-theme: root.dark-theme;
+        clicked => {
+          root.clear-cache-confirmation-requested();
+          root.open-data-folder-requested();
+        }
+      }
+
+      FolderActionButton {
+        icon: @image-url("../../resources/icons/favorites-folder.svg");
+        label: @tr("Open Favorites Folder");
+        tooltip: @tr("Favorites Folder");
+        tooltip-width: 112px;
+        enabled: root.folder-actions-enabled;
+        busy: root.external-action-pending && root.external-action-key == "favorites-folder";
+        dark-theme: root.dark-theme;
+        clicked => {
+          root.clear-cache-confirmation-requested();
+          root.open-favorites-folder-requested();
+        }
+      }
+
+      FolderActionButton {
+        icon: @image-url("../../resources/icons/logs-folder.svg");
+        label: @tr("Open Logs Folder");
+        tooltip: @tr("Logs Folder");
+        tooltip-width: 78px;
+        enabled: root.folder-actions-enabled;
+        busy: root.external-action-pending && root.external-action-key == "logs-folder";
+        dark-theme: root.dark-theme;
+        clicked => {
+          root.clear-cache-confirmation-requested();
+          root.open-logs-folder-requested();
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Cache");
+      dark-theme: root.dark-theme;
+
+      Button {
+        text: root.clean-cache-pending ? @tr("Clearing") : root.pending-clean-cache ? @tr("Confirm Clear") : @tr("Clear Cache");
+        assistive-label: root.clean-cache-pending ? @tr("Clearing Cache") : root.pending-clean-cache ? @tr("Confirm Clear Cache") : @tr("Clear Cache");
+        assistive-description: root.pending-clean-cache ? @tr("Activate again to clear cached wallpapers. Press Escape to cancel.") : "";
+        enabled: root.controls-enabled;
+        busy: root.clean-cache-pending;
+        cancel-enabled: root.pending-clean-cache;
+        danger: root.pending-clean-cache || root.clean-cache-pending;
+        dark-theme: root.dark-theme;
+        width: root.cache-action-width;
+        cancelled => {
+          root.clear-cache-confirmation-requested();
+        }
+        clicked => {
+          if root.pending-clean-cache {
+            root.clear-cache-confirmation-requested();
+            root.clean-cache-requested();
+          } else {
+            root.pending-clean-cache = true;
+          }
+        }
+      }
+    }
+  }
+}
+
+export component SettingsModal inherits FocusScope {
+  in-out property <bool> open: false;
+  in-out property <bool> pending-clean-cache: false;
+  in-out property <bool> clean-cache-pending: false;
+  in-out property <string> active-settings-page: "wallpaper";
+  in property <bool> external-action-pending: false;
+  in property <string> external-action-key: "";
+  in property <bool> settings-save-pending: false;
+  in-out property <bool> show-diagnostics: false;
+  in property <bool> diagnostics-enabled: false;
+  in property <bool> dark-theme: false;
+  in property <bool> auto-sync-enabled: false;
+  in property <string> apply-target-text: "Lock Screen";
+  in property <bool> lock-screen-apply-available: true;
+  in property <bool> gnome-integration-visible: false;
+  in property <string> gnome-integration-state-text: "Not Installed";
+  in property <string> lock-screen-blur-text: "System";
+  in property <string> lock-screen-display-text: "System";
+  in property <bool> start-at-login-enabled: false;
+  in property <bool> keep-running-in-background-enabled: true;
+  in property <bool> automatic-update-checks-enabled: true;
+  in property <string> language-code: "system";
+  in property <string> wallpaper-source-text: "Current Desktop";
+  in property <string> sync-interval-text: "30 minutes";
+  in property <string> history-limit-text: "250 wallpapers";
+  in property <string> theme-text: "System";
+  in property <string> update-status-text: "Not checked";
+  in property <bool> update-check-pending: false;
+  in property <bool> update-release-available: false;
+  in property <string> diagnostics-startup: "-";
+  in property <string> diagnostics-first-scan: "-";
+  in property <string> diagnostics-first-snapshot: "-";
+  in property <string> diagnostics-current-preview: "-";
+  in property <string> diagnostics-thumbnails: "-";
+  in property <string> feedback-text: "";
+  private property <length> modal-margin: 18px;
+  private property <length> modal-min-width: 500px;
+  private property <length> modal-desired-width: 720px;
+  private property <length> modal-available-width: root.width - root.modal-margin * 2;
+  private property <length> modal-width: root.modal-available-width < root.modal-min-width
+    ? root.modal-min-width
+    : root.modal-available-width < root.modal-desired-width ? root.modal-available-width : root.modal-desired-width;
+  private property <length> modal-min-height: 420px;
+  private property <length> modal-desired-height: root.diagnostics-enabled && root.show-diagnostics ? 620px : 540px;
+  private property <length> modal-available-height: root.height - root.modal-margin * 2;
+  private property <length> modal-height: root.modal-available-height < root.modal-min-height
+    ? root.modal-min-height
+    : root.modal-available-height < root.modal-desired-height ? root.modal-available-height : root.modal-desired-height;
+  private property <length> modal-x: root.width < root.modal-width + root.modal-margin * 2
+    ? root.modal-margin
+    : (root.width - root.modal-width) / 2;
+  private property <length> modal-y: root.height < root.modal-height + root.modal-margin * 2
+    ? root.modal-margin
+    : (root.height - root.modal-height) / 2;
+  private property <length> modal-padding: 16px;
+  private property <length> header-height: 32px;
+  private property <length> section-spacing: 14px;
+  private property <length> rule-height: 1px;
+  private property <length> content-min-height: 240px;
+  private property <length> content-raw-height: root.modal-height
+    - root.modal-padding * 2
+    - root.header-height
+    - root.rule-height
+    - root.section-spacing * 2;
+  private property <length> content-height: root.content-raw-height < root.content-min-height ? root.content-min-height : root.content-raw-height;
+  private property <length> content-min-width: 460px;
+  private property <length> scrollbar-reserve: 8px;
+  private property <length> content-raw-width: root.modal-width - root.modal-padding * 2 - root.scrollbar-reserve;
+  private property <length> content-width: root.content-raw-width < root.content-min-width ? root.content-min-width : root.content-raw-width;
+  private property <length> sidebar-width: 124px;
+  private property <length> sidebar-gap: 16px;
+  private property <length> sidebar-divider-width: 1px;
+  private property <length> page-right-gutter: 12px;
+  private property <length> compact-nav-height: 34px;
+  private property <length> compact-nav-spacing: 12px;
+  private property <bool> compact-layout: root.modal-width < 660px;
+  private property <length> page-viewport-width: root.compact-layout
+    ? root.content-width
+    : root.content-width - root.sidebar-width - root.sidebar-gap * 2 - root.sidebar-divider-width;
+  private property <length> page-content-width: root.page-viewport-width - root.page-right-gutter;
+  private property <length> page-scroll-height: root.compact-layout
+    ? root.content-height - root.compact-nav-height - root.compact-nav-spacing
+    : root.content-height;
+  private property <length> nav-segment-width: (root.content-width - 8px) / 3;
+  private property <length> sync-segment-width: 82px;
+  private property <length> sync-group-width: 254px;
+  private property <length> target-value-width: 184px;
+  private property <length> source-current-width: 86px;
+  private property <length> source-library-width: 78px;
+  private property <length> source-favorites-width: 94px;
+  private property <length> source-group-width: 266px;
+  private property <length> history-option-width: 64px;
+  private property <length> history-unlimited-width: 96px;
+  private property <length> history-group-width: 298px;
+  private property <length> theme-system-width: 86px;
+  private property <length> theme-option-width: 72px;
+  private property <length> theme-group-width: 238px;
+  private property <length> language-option-width: 78px;
+  private property <length> language-group-width: 318px;
+  private property <length> cache-action-width: 128px;
+  private property <bool> modal-busy: root.settings-save-pending || root.clean-cache-pending;
+  private property <bool> controls-enabled: !root.settings-save-pending && !root.clean-cache-pending;
+  private property <bool> folder-actions-enabled: root.controls-enabled && !root.external-action-pending;
+  callback close-requested();
+  callback clean-cache-requested();
+  callback auto-sync-changed(bool);
+  callback gnome-integration-install-requested();
+  callback gnome-integration-enabled-changed(bool);
+  callback lock-screen-blur-selected(string);
+  callback lock-screen-display-selected(string);
+  callback wallpaper-source-selected(string);
+  callback start-at-login-changed(bool);
+  callback keep-running-in-background-changed(bool);
+  callback automatic-update-checks-changed(bool);
+  callback language-selected(string);
+  callback history-limit-selected(int);
+  callback sync-interval-selected(int);
+  callback theme-selected(string);
+  callback open-data-folder-requested();
+  callback open-favorites-folder-requested();
+  callback open-logs-folder-requested();
+  callback update-check-requested();
+  callback update-release-requested();
+
+  function clear-cache-confirmation() {
+    if root.pending-clean-cache {
+      root.pending-clean-cache = false;
+      root.focus();
+    }
+  }
+
+  function close-modal() {
+    if root.modal-busy {
+      return;
+    }
+
+    root.clear-cache-confirmation();
+    root.close-requested();
+  }
+
+  enabled: root.open;
+  focus-on-click: false;
+  focus-on-tab-navigation: false;
+  capture-key-pressed(event) => {
+    if event.text == Key.Escape {
+      if root.pending-clean-cache {
+        root.clear-cache-confirmation();
+      } else if !root.modal-busy {
+        root.close-modal();
+      }
+      return accept;
+    }
+    return reject;
+  }
+
+  if root.open: Rectangle {
+    width: parent.width;
+    height: parent.height;
+    background: SpotlitTheme.modal_backdrop(root.dark-theme);
+
+    touch-close := TouchArea {
+      width: parent.width;
+      height: parent.height;
+      clicked => {
+        if root.pending-clean-cache {
+          root.clear-cache-confirmation();
+        } else if !root.modal-busy {
+          root.close-modal();
+        }
+      }
+    }
+
+    Rectangle {
+      x: root.modal-x;
+      y: root.modal-y;
+      width: root.modal-width;
+      height: root.modal-height;
+      border-radius: 8px;
+      border-width: 1px;
+      border-color: SpotlitTheme.border_muted(root.dark-theme);
+      background: SpotlitTheme.surface(root.dark-theme);
+      clip: true;
+      accessible-role: AccessibleRole.groupbox;
+      accessible-label: @tr("Settings");
+      accessible-description: root.modal-busy ? @tr("Settings operation in progress.") : root.external-action-pending ? @tr("External action in progress. Settings can be closed.") : root.pending-clean-cache ? @tr("Press Escape to cancel cache confirmation.") : @tr("Press Escape to close settings.");
+
+      touch-modal := TouchArea {
+        width: parent.width;
+        height: parent.height;
+        clicked => {}
+      }
+
+      VerticalLayout {
+        padding: root.modal-padding;
+        spacing: root.section-spacing;
+
+        HorizontalLayout {
+          height: root.header-height;
+          spacing: 10px;
+
+          Heading {
+            text: @tr("Settings");
+            dark-theme: root.dark-theme;
+            size: 20;
+            height: root.header-height;
+          }
+
+          Text {
+            text: root.feedback-text;
+            horizontal-stretch: 1;
+            height: root.header-height;
+            color: SpotlitTheme.text_feedback(root.dark-theme);
+            font-size: 12px;
+            font-weight: 600;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            overflow: elide;
+          }
+
+          ModalHeaderButton {
+            icon: @image-url("../../resources/icons/close.svg");
+            label: root.modal-busy ? @tr("Operation in Progress") : @tr("Close Settings");
+            tooltip: root.modal-busy ? @tr("Busy") : @tr("Close");
+            tooltip-width: root.modal-busy ? 48px : 52px;
+            enabled: !root.modal-busy;
+            dark-theme: root.dark-theme;
+            clicked => {
+              root.close-modal();
+            }
+          }
+        }
+
+        Rule {
+          dark-theme: root.dark-theme;
+        }
+
+        VerticalLayout {
+          height: root.content-height;
+          spacing: root.compact-layout ? root.compact-nav-spacing : 0px;
+
+          if root.compact-layout: SegmentGroup {
+            label: @tr("Settings Category");
+            dark-theme: root.dark-theme;
+            width: root.content-width;
+
+            Segment {
+              text: @tr("Wallpaper");
+              context: @tr("Settings Category");
+              selected: root.active-settings-page == "wallpaper";
+              enabled: !root.modal-busy;
+              dark-theme: root.dark-theme;
+              grouped: true;
+              width: root.nav-segment-width;
+              clicked => {
+                root.clear-cache-confirmation();
+                root.active-settings-page = "wallpaper";
+              }
+            }
+
+            Segment {
+              text: @tr("App");
+              context: @tr("Settings Category");
+              selected: root.active-settings-page == "app";
+              enabled: !root.modal-busy;
+              dark-theme: root.dark-theme;
+              grouped: true;
+              width: root.nav-segment-width;
+              clicked => {
+                root.clear-cache-confirmation();
+                root.active-settings-page = "app";
+              }
+            }
+
+            Segment {
+              text: @tr("Storage");
+              context: @tr("Settings Category");
+              selected: root.active-settings-page == "storage";
+              enabled: !root.modal-busy;
+              dark-theme: root.dark-theme;
+              grouped: true;
+              width: root.nav-segment-width;
+              clicked => {
+                root.clear-cache-confirmation();
+                root.active-settings-page = "storage";
+              }
+            }
+          }
+
+          if root.compact-layout: ScrollView {
+            height: root.page-scroll-height;
+            viewport-width: root.page-viewport-width;
+
+            SettingsPageContent {
+              page-width: root.page-content-width;
+              active-page: root.active-settings-page;
+              pending-clean-cache: root.pending-clean-cache;
+              clean-cache-pending: root.clean-cache-pending;
+              external-action-pending: root.external-action-pending;
+              external-action-key: root.external-action-key;
+              show-diagnostics: root.show-diagnostics;
+              diagnostics-enabled: root.diagnostics-enabled;
+              dark-theme: root.dark-theme;
+              auto-sync-enabled: root.auto-sync-enabled;
+              apply-target-text: root.apply-target-text;
+              lock-screen-apply-available: root.lock-screen-apply-available;
+              gnome-integration-visible: root.gnome-integration-visible;
+              gnome-integration-state-text: root.gnome-integration-state-text;
+              lock-screen-blur-text: root.lock-screen-blur-text;
+              lock-screen-display-text: root.lock-screen-display-text;
+              start-at-login-enabled: root.start-at-login-enabled;
+              keep-running-in-background-enabled: root.keep-running-in-background-enabled;
+              automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+              language-code: root.language-code;
+              wallpaper-source-text: root.wallpaper-source-text;
+              sync-interval-text: root.sync-interval-text;
+              history-limit-text: root.history-limit-text;
+              theme-text: root.theme-text;
+              update-status-text: root.update-status-text;
+              update-check-pending: root.update-check-pending;
+              update-release-available: root.update-release-available;
+              diagnostics-startup: root.diagnostics-startup;
+              diagnostics-first-scan: root.diagnostics-first-scan;
+              diagnostics-first-snapshot: root.diagnostics-first-snapshot;
+              diagnostics-current-preview: root.diagnostics-current-preview;
+              diagnostics-thumbnails: root.diagnostics-thumbnails;
+              controls-enabled: root.controls-enabled;
+              folder-actions-enabled: root.folder-actions-enabled;
+              sync-segment-width: root.sync-segment-width;
+              sync-group-width: root.sync-group-width;
+              target-value-width: root.target-value-width;
+              source-current-width: root.source-current-width;
+              source-library-width: root.source-library-width;
+              source-favorites-width: root.source-favorites-width;
+              source-group-width: root.source-group-width;
+              history-option-width: root.history-option-width;
+              history-unlimited-width: root.history-unlimited-width;
+              history-group-width: root.history-group-width;
+              theme-system-width: root.theme-system-width;
+              theme-option-width: root.theme-option-width;
+              theme-group-width: root.theme-group-width;
+              language-option-width: root.language-option-width;
+              language-group-width: root.language-group-width;
+              cache-action-width: root.cache-action-width;
+              clear-cache-confirmation-requested => {
+                root.clear-cache-confirmation();
+              }
+              clean-cache-requested => {
+                root.clean-cache-requested();
+              }
+              auto-sync-changed(enabled) => {
+                root.auto-sync-changed(enabled);
+              }
+              gnome-integration-install-requested => {
+                root.gnome-integration-install-requested();
+              }
+              gnome-integration-enabled-changed(enabled) => {
+                root.gnome-integration-enabled-changed(enabled);
+              }
+              lock-screen-blur-selected(mode) => {
+                root.lock-screen-blur-selected(mode);
+              }
+              lock-screen-display-selected(mode) => {
+                root.lock-screen-display-selected(mode);
+              }
+              wallpaper-source-selected(source) => {
+                root.wallpaper-source-selected(source);
+              }
+              start-at-login-changed(enabled) => {
+                root.start-at-login-changed(enabled);
+              }
+              keep-running-in-background-changed(enabled) => {
+                root.keep-running-in-background-changed(enabled);
+              }
+              automatic-update-checks-changed(enabled) => {
+                root.automatic-update-checks-changed(enabled);
+              }
+              language-selected(language) => {
+                root.language-selected(language);
+              }
+              history-limit-selected(limit) => {
+                root.history-limit-selected(limit);
+              }
+              sync-interval-selected(minutes) => {
+                root.sync-interval-selected(minutes);
+              }
+              theme-selected(theme) => {
+                root.theme-selected(theme);
+              }
+              open-data-folder-requested => {
+                root.open-data-folder-requested();
+              }
+              open-favorites-folder-requested => {
+                root.open-favorites-folder-requested();
+              }
+              open-logs-folder-requested => {
+                root.open-logs-folder-requested();
+              }
+              update-check-requested => {
+                root.update-check-requested();
+              }
+              update-release-requested => {
+                root.update-release-requested();
+              }
+            }
+          }
+
+          if !root.compact-layout: HorizontalLayout {
+            height: root.content-height;
+            spacing: root.sidebar-gap;
+
+            VerticalLayout {
+              width: root.sidebar-width;
+              spacing: 6px;
+
+              SettingsNavButton {
+                width: root.sidebar-width;
+                text: @tr("Wallpaper");
+                selected: root.active-settings-page == "wallpaper";
+                enabled: !root.modal-busy;
+                dark-theme: root.dark-theme;
+                clicked => {
+                  root.clear-cache-confirmation();
+                  root.active-settings-page = "wallpaper";
+                }
+              }
+
+              SettingsNavButton {
+                width: root.sidebar-width;
+                text: @tr("App");
+                selected: root.active-settings-page == "app";
+                enabled: !root.modal-busy;
+                dark-theme: root.dark-theme;
+                clicked => {
+                  root.clear-cache-confirmation();
+                  root.active-settings-page = "app";
+                }
+              }
+
+              SettingsNavButton {
+                width: root.sidebar-width;
+                text: @tr("Storage");
+                selected: root.active-settings-page == "storage";
+                enabled: !root.modal-busy;
+                dark-theme: root.dark-theme;
+                clicked => {
+                  root.clear-cache-confirmation();
+                  root.active-settings-page = "storage";
+                }
+              }
+            }
+
+            Rectangle {
+              width: root.sidebar-divider-width;
+              height: root.content-height;
+              background: SpotlitTheme.border_subtle(root.dark-theme);
+            }
+
+            ScrollView {
+              height: root.content-height;
+              viewport-width: root.page-viewport-width;
+
+              SettingsPageContent {
+                page-width: root.page-content-width;
+                active-page: root.active-settings-page;
+                pending-clean-cache: root.pending-clean-cache;
+                clean-cache-pending: root.clean-cache-pending;
+                external-action-pending: root.external-action-pending;
+                external-action-key: root.external-action-key;
+                show-diagnostics: root.show-diagnostics;
+                diagnostics-enabled: root.diagnostics-enabled;
+                dark-theme: root.dark-theme;
+                auto-sync-enabled: root.auto-sync-enabled;
+                apply-target-text: root.apply-target-text;
+                lock-screen-apply-available: root.lock-screen-apply-available;
+                gnome-integration-visible: root.gnome-integration-visible;
+                gnome-integration-state-text: root.gnome-integration-state-text;
+                lock-screen-blur-text: root.lock-screen-blur-text;
+                lock-screen-display-text: root.lock-screen-display-text;
+                start-at-login-enabled: root.start-at-login-enabled;
+                keep-running-in-background-enabled: root.keep-running-in-background-enabled;
+                automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+                language-code: root.language-code;
+                wallpaper-source-text: root.wallpaper-source-text;
+                sync-interval-text: root.sync-interval-text;
+                history-limit-text: root.history-limit-text;
+                theme-text: root.theme-text;
+                update-status-text: root.update-status-text;
+                update-check-pending: root.update-check-pending;
+                update-release-available: root.update-release-available;
+                diagnostics-startup: root.diagnostics-startup;
+                diagnostics-first-scan: root.diagnostics-first-scan;
+                diagnostics-first-snapshot: root.diagnostics-first-snapshot;
+                diagnostics-current-preview: root.diagnostics-current-preview;
+                diagnostics-thumbnails: root.diagnostics-thumbnails;
+                controls-enabled: root.controls-enabled;
+                folder-actions-enabled: root.folder-actions-enabled;
+                sync-segment-width: root.sync-segment-width;
+                sync-group-width: root.sync-group-width;
+                target-value-width: root.target-value-width;
+                source-current-width: root.source-current-width;
+                source-library-width: root.source-library-width;
+                source-favorites-width: root.source-favorites-width;
+                source-group-width: root.source-group-width;
+                history-option-width: root.history-option-width;
+                history-unlimited-width: root.history-unlimited-width;
+                history-group-width: root.history-group-width;
+                theme-system-width: root.theme-system-width;
+                theme-option-width: root.theme-option-width;
+                theme-group-width: root.theme-group-width;
+                language-option-width: root.language-option-width;
+                language-group-width: root.language-group-width;
+                cache-action-width: root.cache-action-width;
+                clear-cache-confirmation-requested => {
+                  root.clear-cache-confirmation();
+                }
+                clean-cache-requested => {
+                  root.clean-cache-requested();
+                }
+                auto-sync-changed(enabled) => {
+                  root.auto-sync-changed(enabled);
+                }
+                gnome-integration-install-requested => {
+                  root.gnome-integration-install-requested();
+                }
+                gnome-integration-enabled-changed(enabled) => {
+                  root.gnome-integration-enabled-changed(enabled);
+                }
+                lock-screen-blur-selected(mode) => {
+                  root.lock-screen-blur-selected(mode);
+                }
+                lock-screen-display-selected(mode) => {
+                  root.lock-screen-display-selected(mode);
+                }
+                wallpaper-source-selected(source) => {
+                  root.wallpaper-source-selected(source);
+                }
+                start-at-login-changed(enabled) => {
+                  root.start-at-login-changed(enabled);
+                }
+                keep-running-in-background-changed(enabled) => {
+                  root.keep-running-in-background-changed(enabled);
+                }
+                automatic-update-checks-changed(enabled) => {
+                  root.automatic-update-checks-changed(enabled);
+                }
+                language-selected(language) => {
+                  root.language-selected(language);
+                }
+                history-limit-selected(limit) => {
+                  root.history-limit-selected(limit);
+                }
+                sync-interval-selected(minutes) => {
+                  root.sync-interval-selected(minutes);
+                }
+                theme-selected(theme) => {
+                  root.theme-selected(theme);
+                }
+                open-data-folder-requested => {
+                  root.open-data-folder-requested();
+                }
+                open-favorites-folder-requested => {
+                  root.open-favorites-folder-requested();
+                }
+                open-logs-folder-requested => {
+                  root.open-logs-folder-requested();
+                }
+                update-check-requested => {
+                  root.update-check-requested();
+                }
+                update-release-requested => {
+                  root.update-release-requested();
+                }
+              }
+            }
+          }
+        }
+      
+      }
+    }
+  }
+}

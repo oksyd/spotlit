@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Spotlit
+Comment=Manage Bing and Windows Spotlight wallpapers
+Exec=spotlit
+Icon=spotlit
+Terminal=false
+Categories=Utility;
+Keywords=Wallpaper;Bing;Spotlight;
+StartupNotify=true

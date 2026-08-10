@@ -1,0 +1,524 @@
+import { ListView } from "std-widgets.slint";
+import { WallpaperItem } from "models.slint";
+import { ActionFocus, BodyText, FocusRing, Heading } from "foundation.slint";
+import { SpotlitTheme } from "theme.slint";
+
+export component FilterSegment inherits Rectangle {
+  in property <string> text;
+  in property <string> context: "";
+  in property <bool> selected: false;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  in property <length> text-padding: 6px;
+  callback clicked();
+
+  private property <string> accessible-name: root.context == "" ? root.text : root.context + ": " + root.text;
+
+  accessible-role: AccessibleRole.tab;
+  accessible-enabled: root.enabled;
+  accessible-checkable: true;
+  accessible-checked: root.selected;
+  accessible-label: root.accessible-name;
+  accessible-description: root.selected ? @tr("Selected filter") : @tr("Available filter");
+  accessible-action-default => {
+    if root.enabled && !root.selected {
+      root.clicked();
+    }
+  }
+
+  height: 28px;
+  horizontal-stretch: 0;
+  border-radius: 5px;
+  background: !root.enabled
+    ? SpotlitTheme.clear()
+    : root.selected
+    ? SpotlitTheme.surface_selected(root.dark-theme)
+    : (touch.pressed
+      ? SpotlitTheme.surface_pressed(root.dark-theme)
+      : (touch.has-hover ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.clear()));
+
+  Text {
+    x: root.text-padding;
+    width: root.width - root.text-padding * 2;
+    height: root.height;
+    text: root.text;
+    color: !root.enabled
+      ? SpotlitTheme.text_disabled(root.dark-theme)
+      : root.selected ? SpotlitTheme.text_on_selected(root.dark-theme) : SpotlitTheme.text_secondary(root.dark-theme);
+    font-size: 12px;
+    font-weight: root.selected ? 700 : 500;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    overflow: elide;
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.enabled {
+        key-focus.focus();
+        if !root.selected {
+          root.clicked();
+        }
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.enabled;
+    activated => {
+      if !root.selected {
+        root.clicked();
+      }
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 4px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component FilterTabs inherits Rectangle {
+  in property <bool> favorites-only: false;
+  in property <bool> enabled: true;
+  in property <bool> dark-theme: false;
+  callback changed(bool);
+
+  width: 178px;
+  height: 32px;
+  horizontal-stretch: 0;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: SpotlitTheme.border_muted(root.dark-theme);
+  background: SpotlitTheme.surface_subtle(root.dark-theme);
+  accessible-role: AccessibleRole.tab-list;
+  accessible-enabled: root.enabled;
+  accessible-label: @tr("Library Filters");
+
+  HorizontalLayout {
+    padding: 2px;
+    spacing: 2px;
+
+    FilterSegment {
+      text: @tr("All");
+      context: @tr("Library");
+      selected: !root.favorites-only;
+      enabled: root.enabled;
+      dark-theme: root.dark-theme;
+      width: 72px;
+      clicked => {
+        if root.enabled {
+          root.changed(false);
+        }
+      }
+    }
+
+    FilterSegment {
+      text: @tr("Favorites");
+      context: @tr("Library");
+      selected: root.favorites-only;
+      enabled: root.enabled;
+      dark-theme: root.dark-theme;
+      width: 98px;
+      clicked => {
+        if root.enabled {
+          root.changed(true);
+        }
+      }
+    }
+  }
+}
+
+
+export component RowFavoriteAction inherits Rectangle {
+  in property <bool> favorite: false;
+  in property <bool> enabled: true;
+  in property <bool> busy: false;
+  in property <bool> clickable-while-busy: false;
+  in property <bool> dark-theme: false;
+  in property <length> icon-size: 15px;
+  out property <bool> focused: key-focus.has-focus;
+  callback toggled(bool);
+
+  private property <bool> action-enabled: root.enabled && (!root.busy || root.clickable-while-busy);
+
+  accessible-role: button;
+  accessible-enabled: root.action-enabled;
+  accessible-checkable: true;
+  accessible-checked: root.favorite;
+  accessible-label: root.favorite ? @tr("Remove Favorite") : @tr("Add Favorite");
+  accessible-description: root.busy ? @tr("Favorite update in progress") : @tr("Toggle favorite for this wallpaper");
+  accessible-action-default => {
+    if root.action-enabled {
+      root.toggled(!root.favorite);
+    }
+  }
+
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  background: root.busy
+    ? SpotlitTheme.favorite_bg(root.dark-theme)
+    : root.enabled && (touch.has-hover || key-focus.has-focus)
+      ? SpotlitTheme.surface_hover(root.dark-theme)
+    : SpotlitTheme.clear();
+
+  Image {
+    x: (root.width - root.icon-size) / 2;
+    y: (root.height - root.icon-size) / 2;
+    width: root.icon-size;
+    height: root.icon-size;
+    source: root.favorite ? @image-url("../../resources/icons/star-filled.svg") : @image-url("../../resources/icons/star.svg");
+    image-fit: contain;
+    accessible-role: none;
+    colorize: root.busy
+      ? SpotlitTheme.favorite_text(root.dark-theme)
+      : !root.enabled
+      ? (root.favorite ? SpotlitTheme.favorite_disabled_text(root.dark-theme) : SpotlitTheme.text_disabled(root.dark-theme))
+      : root.favorite
+        ? SpotlitTheme.favorite_text(root.dark-theme)
+      : SpotlitTheme.text_tertiary(root.dark-theme);
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.action-enabled {
+        key-focus.focus();
+        root.toggled(!root.favorite);
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.action-enabled;
+    activated => {
+      root.toggled(!root.favorite);
+    }
+  }
+
+  if key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 5px;
+    dark-theme: root.dark-theme;
+  }
+}
+
+export component ThumbnailArt inherits Rectangle {
+  in property <bool> active: false;
+  in property <bool> current: false;
+  in property <bool> favorite: false;
+  in property <bool> dark-theme: false;
+
+  border-radius: 5px;
+  clip: true;
+  background: SpotlitTheme.art_sky(root.dark-theme);
+  accessible-role: none;
+
+  Rectangle {
+    x: 0px;
+    y: 29px;
+    width: parent.width;
+    height: 23px;
+    background: SpotlitTheme.art_ground(root.dark-theme);
+  }
+
+  Rectangle {
+    x: 0px;
+    y: 38px;
+    width: parent.width;
+    height: 14px;
+    background: root.active
+      ? SpotlitTheme.art_subject_active(root.dark-theme)
+      : SpotlitTheme.art_shadow(root.dark-theme);
+  }
+
+  Rectangle {
+    x: 57px;
+    y: 10px;
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: root.favorite
+      ? SpotlitTheme.art_accent(root.dark-theme)
+      : SpotlitTheme.art_muted(root.dark-theme);
+  }
+
+  Rectangle {
+    x: 26px;
+    y: 24px;
+    width: 34px;
+    height: 28px;
+    border-radius: 4px;
+    background: root.current
+      ? SpotlitTheme.art_subject_active(root.dark-theme)
+      : SpotlitTheme.art_subject(root.dark-theme);
+  }
+
+  Rectangle {
+    x: 43px;
+    y: 29px;
+    width: 32px;
+    height: 23px;
+    border-radius: 4px;
+    background: SpotlitTheme.art_subject(root.dark-theme);
+  }
+}
+
+export component WallpaperRow inherits Rectangle {
+  in property <WallpaperItem> item;
+  in property <bool> active: false;
+  in property <bool> current: false;
+  in property <bool> enabled: true;
+  in property <bool> favorite-action-enabled: true;
+  in property <string> favorite-pending-id: "";
+  in property <string> removing-wallpaper-id: "";
+  in property <bool> dark-theme: false;
+  in property <length> row-height: 72px;
+  callback selected(WallpaperItem);
+  callback favorite-toggled(WallpaperItem, bool);
+
+  private property <string> favorite-accessible-label: root.item.favorite ? " Favorite." : "";
+  private property <string> current-accessible-label: root.current ? " Current wallpaper." : "";
+  private property <bool> row-removing: root.removing-wallpaper-id != "" && root.removing-wallpaper-id == root.item.id;
+  private property <string> removing-accessible-label: root.row-removing ? " Removing." : "";
+  private property <string> accessible-details: root.item.details + root.favorite-accessible-label + root.current-accessible-label + root.removing-accessible-label;
+  private property <length> row-padding: 8px;
+  private property <length> thumbnail-width: 88px;
+  private property <length> thumbnail-height: 52px;
+  private property <length> content-height: 42px;
+  private property <length> content-gap: 12px;
+  private property <length> action-lane-width: 42px;
+  private property <length> removing-lane-width: 54px;
+  private property <length> status-lane-width: root.row-removing ? root.removing-lane-width : root.action-lane-width;
+  private property <length> favorite-action-size: 32px;
+  private property <length> favorite-icon-size: 15px;
+  private property <length> active-indicator-width: 4px;
+  private property <length> current-badge-width: 54px;
+  private property <length> current-badge-height: 18px;
+  private property <length> current-badge-inset: 6px;
+  private property <bool> row-selectable: root.enabled && !root.row-removing;
+  private property <bool> row-hovered: root.row-selectable && touch.has-hover;
+  private property <bool> row-pressed: root.row-selectable && touch.pressed;
+  private property <bool> favorite-busy: root.favorite-pending-id != "" && root.favorite-pending-id == root.item.id;
+  private property <bool> show-favorite-action: !root.row-removing && (root.item.favorite || root.favorite-busy || (root.enabled && root.favorite-action-enabled && (root.active || touch.has-hover || favorite-action.focused || key-focus.has-focus)));
+
+  accessible-role: list-item;
+  accessible-enabled: root.row-selectable;
+  accessible-label: root.item.title;
+  accessible-description: root.accessible-details;
+  accessible-item-selectable: root.row-selectable;
+  accessible-item-selected: root.row-selectable && root.active;
+  accessible-action-default => {
+    if root.row-selectable {
+      root.selected(root.item);
+    }
+  }
+
+  height: root.row-height;
+  border-radius: 7px;
+  border-width: 1px;
+  border-color: root.row-pressed
+    ? SpotlitTheme.border_strong(root.dark-theme)
+    : root.row-removing
+      ? SpotlitTheme.danger_border(root.dark-theme)
+    : root.active
+      ? SpotlitTheme.border_strong(root.dark-theme)
+    : (root.row-hovered ? SpotlitTheme.border_muted(root.dark-theme) : SpotlitTheme.surface(root.dark-theme));
+  background: root.row-pressed
+    ? SpotlitTheme.surface_pressed(root.dark-theme)
+    : root.row-removing
+      ? SpotlitTheme.danger_bg(root.dark-theme)
+    : root.active
+      ? SpotlitTheme.surface_hover(root.dark-theme)
+    : (root.row-hovered ? SpotlitTheme.surface_hover(root.dark-theme) : SpotlitTheme.surface(root.dark-theme));
+
+  Rectangle {
+    x: root.row-padding;
+    y: (root.height - root.thumbnail-height) / 2;
+    width: root.thumbnail-width;
+    height: root.thumbnail-height;
+    border-radius: 5px;
+    background: SpotlitTheme.clear();
+    clip: true;
+
+    ThumbnailArt {
+      visible: !root.item.thumbnail-ready;
+      width: parent.width;
+      height: parent.height;
+      active: root.active;
+      current: root.current;
+      favorite: root.item.favorite;
+      dark-theme: root.dark-theme;
+    }
+
+    Image {
+      visible: root.item.thumbnail-ready;
+      width: parent.width;
+      height: parent.height;
+      source: root.item.thumbnail;
+      image-fit: cover;
+      accessible-role: none;
+    }
+
+    if root.current: Rectangle {
+      x: root.current-badge-inset;
+      y: root.thumbnail-height - root.current-badge-height - root.current-badge-inset;
+      width: root.current-badge-width;
+      height: root.current-badge-height;
+      border-radius: 4px;
+      background: SpotlitTheme.thumbnail_badge_bg();
+      accessible-role: none;
+
+      Text {
+        width: parent.width;
+        height: parent.height;
+        text: @tr("Current");
+        color: SpotlitTheme.text_on_selected(false);
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+      }
+    }
+  }
+
+  VerticalLayout {
+    x: root.row-padding + root.thumbnail-width + root.content-gap;
+    y: (root.height - root.content-height) / 2;
+    width: root.width - root.row-padding * 2 - root.thumbnail-width - root.content-gap - root.status-lane-width;
+    height: root.content-height;
+    spacing: 6px;
+
+    Heading {
+      text: root.item.title;
+      dark-theme: root.dark-theme;
+      size: 13;
+      height: 18px;
+    }
+
+    BodyText {
+      text: root.item.details;
+      dark-theme: root.dark-theme;
+      height: 18px;
+    }
+  }
+
+  Rectangle {
+    visible: root.active;
+    x: 0px;
+    y: root.row-padding;
+    width: root.active-indicator-width;
+    height: root.height - root.row-padding * 2;
+    border-radius: root.active-indicator-width / 2;
+    background: SpotlitTheme.surface_selected(root.dark-theme);
+  }
+
+  touch := TouchArea {
+    clicked => {
+      if root.row-selectable {
+        key-focus.focus();
+        root.selected(root.item);
+      }
+    }
+  }
+
+  key-focus := ActionFocus {
+    width: root.width;
+    height: root.height;
+    enabled: root.row-selectable;
+    activated => {
+      root.selected(root.item);
+    }
+  }
+
+  if root.row-selectable && key-focus.has-focus: FocusRing {
+    x: 1px;
+    y: 1px;
+    width: root.width - 2px;
+    height: root.height - 2px;
+    radius: 6px;
+    dark-theme: root.dark-theme;
+  }
+
+  if root.row-removing: Text {
+    x: root.width - root.row-padding - root.status-lane-width;
+    y: (root.height - 18px) / 2;
+    width: root.status-lane-width;
+    height: 18px;
+    text: @tr("Removing");
+    color: SpotlitTheme.danger_text(root.dark-theme);
+    font-size: 9px;
+    font-weight: 700;
+    horizontal-alignment: center;
+    vertical-alignment: center;
+    overflow: elide;
+    accessible-role: none;
+  }
+
+  favorite-action := RowFavoriteAction {
+    visible: root.show-favorite-action;
+    x: root.width - root.row-padding - root.status-lane-width + (root.status-lane-width - root.favorite-action-size) / 2;
+    y: (root.height - root.favorite-action-size) / 2;
+    width: root.favorite-action-size;
+    height: root.favorite-action-size;
+    favorite: root.item.favorite;
+    enabled: root.enabled && root.favorite-action-enabled && !root.row-removing;
+    busy: root.favorite-busy;
+    dark-theme: root.dark-theme;
+    icon-size: root.favorite-icon-size;
+    toggled(favorite) => {
+      root.favorite-toggled(root.item, favorite);
+    }
+  }
+}
+
+export component WallpaperList inherits ListView {
+  in property <[WallpaperItem]> items;
+  in property <string> selected-id: "";
+  in property <string> current-id: "";
+  in property <string> assistive-label: @tr("Wallpaper Library");
+  in property <bool> favorite-action-enabled: true;
+  in property <string> favorite-pending-id: "";
+  in property <string> removing-wallpaper-id: "";
+  in property <bool> dark-theme: false;
+  in property <length> row-height: 72px;
+  in property <length> row-gutter: 12px;
+  callback selected(WallpaperItem);
+  callback favorite-toggled(string, bool);
+
+  accessible-role: AccessibleRole.list;
+  accessible-enabled: root.enabled;
+  accessible-label: root.assistive-label;
+
+  for item[i] in root.items: WallpaperRow {
+    item: item;
+    active: root.selected-id == item.id;
+    current: root.current-id == item.id;
+    enabled: root.enabled;
+    favorite-action-enabled: root.favorite-action-enabled;
+    favorite-pending-id: root.favorite-pending-id;
+    removing-wallpaper-id: root.removing-wallpaper-id;
+    dark-theme: root.dark-theme;
+    row-height: root.row-height;
+    width: root.width - root.row-gutter;
+    height: root.row-height;
+    selected(item) => {
+      root.selected(item);
+    }
+    favorite-toggled(item, favorite) => {
+      root.favorite-toggled(item.id, favorite);
+    }
+  }
+}

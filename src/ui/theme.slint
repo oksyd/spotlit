@@ -1,0 +1,63 @@
+export global SpotlitTheme {
+  public pure function clear() -> brush { return #00000000; }
+
+  public pure function page(dark: bool) -> brush { return dark ? #0b0f14 : #f3f4f6; }
+  public pure function surface(dark: bool) -> brush { return dark ? #11161d : #ffffff; }
+  public pure function surface_subtle(dark: bool) -> brush { return dark ? #151b23 : #f8fafc; }
+  public pure function surface_muted(dark: bool) -> brush { return dark ? #1a222c : #f1f5f9; }
+  public pure function surface_sunken(dark: bool) -> brush { return dark ? #080c11 : #e9edf2; }
+  public pure function surface_hover(dark: bool) -> brush { return dark ? #1a222c : #f1f5f9; }
+  public pure function surface_pressed(dark: bool) -> brush { return dark ? #202a35 : #e2e8f0; }
+  public pure function surface_selected(dark: bool) -> brush { return dark ? #e8edf3 : #111827; }
+  public pure function surface_selected_hover(dark: bool) -> brush { return dark ? #ffffff : #1f2937; }
+  public pure function surface_selected_pressed(dark: bool) -> brush { return dark ? #cbd5e1 : #020617; }
+
+  public pure function text_primary(dark: bool) -> brush { return dark ? #f3f6fa : #111827; }
+  public pure function text_secondary(dark: bool) -> brush { return dark ? #c1c9d2 : #4b5563; }
+  public pure function text_tertiary(dark: bool) -> brush { return dark ? #8b96a3 : #6b7280; }
+  public pure function text_disabled(dark: bool) -> brush { return dark ? #5f6b78 : #9ca3af; }
+  public pure function text_on_selected(dark: bool) -> brush { return dark ? #111827 : #ffffff; }
+  public pure function text_on_tooltip(dark: bool) -> brush { return dark ? #111827 : #ffffff; }
+  public pure function text_feedback(dark: bool) -> brush { return dark ? #aeb8c4 : #64748b; }
+
+  public pure function border_subtle(dark: bool) -> brush { return dark ? #25303b : #e3e8ef; }
+  public pure function border_muted(dark: bool) -> brush { return dark ? #33404d : #cfd6df; }
+  public pure function border_strong(dark: bool) -> brush { return dark ? #596674 : #a7b0bd; }
+  public pure function border_disabled(dark: bool) -> brush { return dark ? #25303b : #d6dce3; }
+  public pure function border_focus(dark: bool) -> brush { return dark ? #60a5fa : #2563eb; }
+
+  public pure function tooltip_bg(dark: bool) -> brush { return dark ? #f3f6fa : #111827; }
+  public pure function tooltip_border(dark: bool) -> brush { return dark ? #f3f6fa : #111827; }
+
+  public pure function modal_backdrop(dark: bool) -> brush { return dark ? #000000aa : #00000066; }
+  public pure function preview_overlay(dark: bool) -> brush { return dark ? #0b0f14e6 : #fffffff0; }
+  public pure function thumbnail_badge_bg() -> brush { return #111827cc; }
+
+  public pure function danger_text(dark: bool) -> brush { return dark ? #ffb4ab : #b42318; }
+  public pure function danger_bg(dark: bool) -> brush { return dark ? #241112 : #fff4f3; }
+  public pure function danger_hover(dark: bool) -> brush { return dark ? #341719 : #ffe4e1; }
+  public pure function danger_pressed(dark: bool) -> brush { return dark ? #471f21 : #ffd1cc; }
+  public pure function danger_border(dark: bool) -> brush { return dark ? #7b3538 : #f4a9a0; }
+
+  public pure function favorite_text(dark: bool) -> brush { return dark ? #facc15 : #a16207; }
+  public pure function favorite_bg(dark: bool) -> brush { return dark ? #251a05 : #fff7ed; }
+  public pure function favorite_hover(dark: bool) -> brush { return dark ? #332208 : #ffedd5; }
+  public pure function favorite_pressed(dark: bool) -> brush { return dark ? #422c0a : #fed7aa; }
+  public pure function favorite_border(dark: bool) -> brush { return dark ? #7c5a18 : #f59e0b; }
+  public pure function favorite_border_muted(dark: bool) -> brush { return dark ? #4a3820 : #d6c2a2; }
+  public pure function favorite_disabled_text(dark: bool) -> brush { return dark ? #9a7a2a : #b0893b; }
+
+  public pure function switch_track(dark: bool) -> brush { return dark ? #1a222c : #edf2f7; }
+  public pure function switch_track_disabled(dark: bool) -> brush { return dark ? #151b23 : #e5e9ef; }
+  public pure function switch_knob(dark: bool) -> brush { return dark ? #f8fafc : #ffffff; }
+  public pure function switch_knob_checked(dark: bool) -> brush { return dark ? #111827 : #ffffff; }
+  public pure function switch_knob_disabled(dark: bool) -> brush { return dark ? #66717f : #a8b0bb; }
+
+  public pure function art_sky(dark: bool) -> brush { return dark ? #07111c : #d8dee8; }
+  public pure function art_ground(dark: bool) -> brush { return dark ? #132236 : #c9d2dc; }
+  public pure function art_shadow(dark: bool) -> brush { return dark ? #0d1724 : #b8c3ce; }
+  public pure function art_accent(dark: bool) -> brush { return dark ? #facc15 : #b45309; }
+  public pure function art_muted(dark: bool) -> brush { return dark ? #334155 : #9aa6b2; }
+  public pure function art_subject(dark: bool) -> brush { return dark ? #26384d : #a7b4bf; }
+  public pure function art_subject_active(dark: bool) -> brush { return dark ? #3b5672 : #8fa0ac; }
+}

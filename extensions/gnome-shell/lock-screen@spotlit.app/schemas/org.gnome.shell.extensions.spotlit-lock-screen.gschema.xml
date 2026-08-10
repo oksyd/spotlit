@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.spotlit-lock-screen" path="/org/gnome/shell/extensions/spotlit-lock-screen/">
+    <key name="blur-mode" type="s">
+      <choices>
+        <choice value="system"/>
+        <choice value="soft"/>
+        <choice value="clear"/>
+      </choices>
+      <default>'system'</default>
+      <summary>Lock screen background blur</summary>
+    </key>
+    <key name="display-mode" type="s">
+      <choices>
+        <choice value="system"/>
+        <choice value="keep-on-ac"/>
+        <choice value="keep-on"/>
+      </choices>
+      <default>'system'</default>
+      <summary>Lock screen display power policy</summary>
+    </key>
+  </schema>
+</schemalist>

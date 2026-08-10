@@ -1,0 +1,755 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: spotlit 0.1.0\n"
+"Language: zh-CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Added to favorites"
+msgstr "已添加到收藏"
+
+msgid "Adding favorite"
+msgstr "正在添加收藏"
+
+msgid "Applying wallpaper"
+msgstr "正在应用壁纸"
+
+msgid "Auto sync enabled and synced"
+msgstr "已启用自动应用并完成同步"
+
+msgid "Background setting saved"
+msgstr "后台运行设置已保存"
+
+msgid "Bing Wallpaper"
+msgstr "必应壁纸"
+
+msgid "Blur setting request failed"
+msgstr "模糊设置请求失败"
+
+msgid "Cache cleaned"
+msgstr "缓存已清理"
+
+msgid "Check failed"
+msgstr "检查失败"
+
+msgid "Checking for updates"
+msgstr "正在检查更新"
+
+msgid "Clearing cache"
+msgstr "正在清理缓存"
+
+msgid "Current Desktop"
+msgstr "当前桌面"
+
+msgid "Current version"
+msgstr "当前版本"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Export canceled"
+msgstr "已取消导出"
+
+msgid "Export request failed"
+msgstr "导出请求失败"
+
+msgid "Extension install request failed"
+msgstr "扩展安装请求失败"
+
+msgid "Extension request failed"
+msgstr "扩展请求失败"
+
+msgid "Favorite request failed"
+msgstr "收藏请求失败"
+
+msgid "German"
+msgstr "德语"
+
+msgid "GNOME extension disabled"
+msgstr "GNOME 扩展已禁用"
+
+msgid "GNOME extension enabled"
+msgstr "GNOME 扩展已启用"
+
+msgid "GNOME extension installed"
+msgstr "GNOME 扩展已安装"
+
+msgid "History limit saved"
+msgstr "历史记录上限已保存"
+
+msgid "Import canceled"
+msgstr "已取消导入"
+
+msgid "Import request failed"
+msgstr "导入请求失败"
+
+msgid "Library"
+msgstr "图库"
+
+msgid "Library refreshed"
+msgstr "图库已刷新"
+
+msgid "Library up to date"
+msgstr "图库已是最新"
+
+msgid "Language setting saved"
+msgstr "语言设置已保存"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Lock Screen"
+msgstr "锁屏"
+
+msgid "Lock screen blur saved"
+msgstr "锁屏模糊设置已保存"
+
+msgid "Lock screen display request failed"
+msgstr "锁屏显示设置请求失败"
+
+msgid "Lock screen display saved"
+msgstr "锁屏显示设置已保存"
+
+msgid "No releases published"
+msgstr "尚未发布版本"
+
+msgid "Not Installed"
+msgstr "未安装"
+
+msgid "Open folder request failed"
+msgstr "打开文件夹请求失败"
+
+msgid "Open release page request failed"
+msgstr "打开发布页面请求失败"
+
+msgid "Open web page request failed"
+msgstr "打开网页请求失败"
+
+msgid "Opened current image"
+msgstr "已打开当前图片"
+
+msgid "Opened data folder"
+msgstr "已打开数据文件夹"
+
+msgid "Opened favorites folder"
+msgstr "已打开收藏文件夹"
+
+msgid "Opened logs folder"
+msgstr "已打开日志文件夹"
+
+msgid "Opened Spotlit release page"
+msgstr "已打开 Spotlit 发布页面"
+
+msgid "Opened wallpaper info"
+msgstr "已打开壁纸信息"
+
+msgid "Opening"
+msgstr "正在打开"
+
+msgid "Opening data folder"
+msgstr "正在打开数据文件夹"
+
+msgid "Opening export dialog"
+msgstr "正在打开导出对话框"
+
+msgid "Opening favorites folder"
+msgstr "正在打开收藏文件夹"
+
+msgid "Opening file"
+msgstr "正在打开文件"
+
+msgid "Opening import dialog"
+msgstr "正在打开导入对话框"
+
+msgid "Opening logs folder"
+msgstr "正在打开日志文件夹"
+
+msgid "Opening release page"
+msgstr "正在打开发布页面"
+
+msgid "Opening web page"
+msgstr "正在打开网页"
+
+msgid "Preview cache updated"
+msgstr "预览缓存已更新"
+
+msgid "Ready"
+msgstr "就绪"
+
+msgid "Refresh request failed"
+msgstr "刷新请求失败"
+
+msgid "Refreshing library"
+msgstr "正在刷新图库"
+
+msgid "Remove request failed"
+msgstr "移除请求失败"
+
+msgid "Removed from favorites"
+msgstr "已从收藏中移除"
+
+msgid "Removing favorite"
+msgstr "正在移除收藏"
+
+msgid "Removing wallpaper"
+msgstr "正在移除壁纸"
+
+msgid "Restart Required"
+msgstr "需要重新登录"
+
+msgid "Reveal request failed"
+msgstr "定位文件请求失败"
+
+msgid "Saving settings"
+msgstr "正在保存设置"
+
+msgid "Selected file is not a supported landscape wallpaper"
+msgstr "所选文件不是支持的横向壁纸"
+
+msgid "Settings request failed"
+msgstr "设置请求失败"
+
+msgid "Settings saved"
+msgstr "设置已保存"
+
+msgid "Simplified Chinese"
+msgstr "简体中文"
+
+msgid "Soft"
+msgstr "柔和"
+
+msgid "Startup setting saved"
+msgstr "启动设置已保存"
+
+msgid "Sync interval saved"
+msgstr "同步间隔已保存"
+
+msgid "Sync request failed"
+msgstr "同步请求失败"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "System (Dark)"
+msgstr "跟随系统（深色）"
+
+msgid "System (Light)"
+msgstr "跟随系统（浅色）"
+
+msgid "Theme setting saved"
+msgstr "主题设置已保存"
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Unlimited"
+msgstr "无限制"
+
+msgid "Unsupported"
+msgstr "不支持"
+
+msgid "Update check could not be started"
+msgstr "无法启动更新检查"
+
+msgid "Update setting saved"
+msgstr "更新设置已保存"
+
+msgid "Wallpaper applied"
+msgstr "壁纸已应用"
+
+msgid "Wallpaper source saved"
+msgstr "壁纸来源已保存"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Clear"
+msgstr "清晰"
+
+msgid "Favorites"
+msgstr "收藏"
+
+msgid "Current version v{}"
+msgstr "当前版本 v{}"
+
+msgid "Version v{} available"
+msgstr "发现新版本 v{}"
+
+msgid "Up to date (v{})"
+msgstr "已是最新版本（v{}）"
+
+msgid "{} wallpapers"
+msgstr "{} 张壁纸"
+
+msgid "{} favorites"
+msgstr "{} 个收藏"
+
+msgid "{} minutes"
+msgstr "{} 分钟"
+
+msgid "Sync {}"
+msgstr "同步于 {}"
+
+msgid "Update check failed: {}"
+msgstr "更新检查失败：{}"
+
+msgid "Failed: {}"
+msgstr "失败：{}"
+
+msgid "Cache cleaned: {} wallpapers removed"
+msgstr "缓存已清理：移除了 {} 张壁纸"
+
+msgid "History limit saved: {} wallpapers removed"
+msgstr "历史记录上限已保存：移除了 {} 张壁纸"
+
+msgid "Imported {}"
+msgstr "已导入 {}"
+
+msgid "Exported to {}"
+msgstr "已导出到 {}"
+
+msgid "Opened {}"
+msgstr "已打开 {}"
+
+msgid "Removed {}"
+msgstr "已移除 {}"
+
+msgid "Spotlit"
+msgstr "Spotlit"
+
+msgid "Not checked"
+msgstr "尚未检查"
+
+msgid "Loading preview"
+msgstr "正在加载预览"
+
+msgid "Preview pending"
+msgstr "等待生成预览"
+
+msgid "STATUS"
+msgstr "状态"
+
+msgid "CURRENT WALLPAPER"
+msgstr "当前壁纸"
+
+msgid "NOT IN FAVORITES"
+msgstr "不在收藏中"
+
+msgid "SELECTED WALLPAPER"
+msgstr "所选壁纸"
+
+msgid "Selected Wallpaper Preview"
+msgstr "所选壁纸预览"
+
+msgid "Current Wallpaper Preview"
+msgstr "当前壁纸预览"
+
+msgid "PREVIEW"
+msgstr "预览"
+
+msgid "No Wallpaper"
+msgstr "暂无壁纸"
+
+msgid "Refreshing"
+msgstr "正在刷新"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Import"
+msgstr "导入"
+
+msgid "Wallpaper Details"
+msgstr "壁纸详情"
+
+msgid "FILE"
+msgstr "文件"
+
+msgid "Open Wallpaper Info"
+msgstr "打开壁纸信息"
+
+msgid "Web"
+msgstr "网页"
+
+msgid "Reveal Wallpaper File"
+msgstr "定位壁纸文件"
+
+msgid "Reveal"
+msgstr "定位"
+
+msgid "Export Wallpaper"
+msgstr "导出壁纸"
+
+msgid "Export"
+msgstr "导出"
+
+msgid "Removing"
+msgstr "正在移除"
+
+msgid "Confirm Remove"
+msgstr "确认移除"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Removing Wallpaper"
+msgstr "正在移除壁纸"
+
+msgid "Confirm Remove Wallpaper"
+msgstr "确认移除壁纸"
+
+msgid "Remove Wallpaper"
+msgstr "移除壁纸"
+
+msgid "Activate again to remove this wallpaper. Press Escape to cancel."
+msgstr "再次操作以移除此壁纸，按 Escape 取消。"
+
+msgid "Waiting for wallpaper"
+msgstr "正在等待壁纸"
+
+msgid "Show Current Wallpaper"
+msgstr "显示当前壁纸"
+
+msgid "Current"
+msgstr "当前"
+
+msgid "Hide Wallpaper Details"
+msgstr "隐藏壁纸详情"
+
+msgid "Show Wallpaper Details"
+msgstr "显示壁纸详情"
+
+msgid "Hide"
+msgstr "隐藏"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Applying"
+msgstr "正在应用"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Applying Wallpaper"
+msgstr "正在应用壁纸"
+
+msgid "Apply Wallpaper"
+msgstr "应用壁纸"
+
+msgid "Refresh Library"
+msgstr "刷新图库"
+
+msgid "Import Wallpaper"
+msgstr "导入壁纸"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "All Wallpapers"
+msgstr "全部壁纸"
+
+msgid "No Wallpapers"
+msgstr "暂无壁纸"
+
+msgid "Favorite Wallpapers"
+msgstr "收藏的壁纸"
+
+msgid "No Favorites"
+msgstr "暂无收藏"
+
+msgid "Show All"
+msgstr "显示全部"
+
+msgid "Open Spotlit"
+msgstr "打开 Spotlit"
+
+msgid "Open Data Folder"
+msgstr "打开数据文件夹"
+
+msgid "Lock Workstation"
+msgstr "锁定工作站"
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "Operation in progress"
+msgstr "操作正在进行"
+
+msgid "Selected option"
+msgstr "已选选项"
+
+msgid "Available option"
+msgstr "可用选项"
+
+msgid "Selected settings page"
+msgstr "已选设置页面"
+
+msgid "Available settings page"
+msgstr "可用设置页面"
+
+msgid "Remove Favorite"
+msgstr "取消收藏"
+
+msgid "Add Favorite"
+msgstr "添加收藏"
+
+msgid "Favorite"
+msgstr "收藏"
+
+msgid "Favorite update in progress"
+msgstr "正在更新收藏"
+
+msgid "Selected filter"
+msgstr "已选筛选项"
+
+msgid "Available filter"
+msgstr "可用筛选项"
+
+msgid "Library Filters"
+msgstr "图库筛选"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Toggle favorite for this wallpaper"
+msgstr "切换此壁纸的收藏状态"
+
+msgid "Wallpaper Library"
+msgstr "壁纸图库"
+
+msgid "WALLPAPER"
+msgstr "壁纸"
+
+msgid "Auto Apply"
+msgstr "自动应用"
+
+msgid "Target"
+msgstr "目标"
+
+msgid "Source"
+msgstr "来源"
+
+msgid "Wallpaper Source"
+msgstr "壁纸来源"
+
+msgid "Sync Interval"
+msgstr "同步间隔"
+
+msgid "Sync interval"
+msgstr "同步间隔"
+
+msgid "15 min"
+msgstr "15 分钟"
+
+msgid "30 min"
+msgstr "30 分钟"
+
+msgid "60 min"
+msgstr "60 分钟"
+
+msgid "GNOME LOCK SCREEN"
+msgstr "GNOME 锁屏"
+
+msgid "Extension"
+msgstr "扩展"
+
+msgid "Install"
+msgstr "安装"
+
+msgid "Install GNOME Lock Screen Extension"
+msgstr "安装 GNOME 锁屏扩展"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enable GNOME Lock Screen Extension"
+msgstr "启用 GNOME 锁屏扩展"
+
+msgid "Disable"
+msgstr "禁用"
+
+msgid "Disable GNOME Lock Screen Extension"
+msgstr "禁用 GNOME 锁屏扩展"
+
+msgid "Blur"
+msgstr "模糊"
+
+msgid "Lock Screen Blur"
+msgstr "锁屏模糊"
+
+msgid "Display"
+msgstr "显示"
+
+msgid "Lock Screen Display"
+msgstr "锁屏显示"
+
+msgid "Plugged In"
+msgstr "接通电源"
+
+msgid "Always"
+msgstr "始终"
+
+msgid "APP"
+msgstr "应用"
+
+msgid "Start at Login"
+msgstr "登录时启动"
+
+msgid "Keep Running in Background"
+msgstr "保持后台运行"
+
+msgid "Automatic Update Checks"
+msgstr "自动检查更新"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Interface Language"
+msgstr "界面语言"
+
+msgid "English"
+msgstr "英语"
+
+msgid "Chinese"
+msgstr "中文"
+
+msgid "Updates"
+msgstr "更新"
+
+msgid "View"
+msgstr "查看"
+
+msgid "Check"
+msgstr "检查"
+
+msgid "View Latest Spotlit Release"
+msgstr "查看最新 Spotlit 版本"
+
+msgid "Check for Spotlit Updates"
+msgstr "检查 Spotlit 更新"
+
+msgid "Diagnostics"
+msgstr "诊断"
+
+msgid "Metrics"
+msgstr "指标"
+
+msgid "Diagnostics Metrics"
+msgstr "诊断指标"
+
+msgid "Startup"
+msgstr "启动"
+
+msgid "First Scan"
+msgstr "首次扫描"
+
+msgid "First Snapshot"
+msgstr "首次快照"
+
+msgid "Main Preview"
+msgstr "主预览"
+
+msgid "Thumbnails"
+msgstr "缩略图"
+
+msgid "STORAGE"
+msgstr "存储"
+
+msgid "Saved Limit"
+msgstr "保存上限"
+
+msgid "Saved Wallpaper Limit"
+msgstr "壁纸保存上限"
+
+msgid "100"
+msgstr "100"
+
+msgid "250"
+msgstr "250"
+
+msgid "500"
+msgstr "500"
+
+msgid "Folders"
+msgstr "文件夹"
+
+msgid "Data Folder"
+msgstr "数据文件夹"
+
+msgid "Open Favorites Folder"
+msgstr "打开收藏文件夹"
+
+msgid "Favorites Folder"
+msgstr "收藏文件夹"
+
+msgid "Open Logs Folder"
+msgstr "打开日志文件夹"
+
+msgid "Logs Folder"
+msgstr "日志文件夹"
+
+msgid "Cache"
+msgstr "缓存"
+
+msgid "Clearing"
+msgstr "正在清理"
+
+msgid "Confirm Clear"
+msgstr "确认清理"
+
+msgid "Clear Cache"
+msgstr "清理缓存"
+
+msgid "Clearing Cache"
+msgstr "正在清理缓存"
+
+msgid "Confirm Clear Cache"
+msgstr "确认清理缓存"
+
+msgid "Activate again to clear cached wallpapers. Press Escape to cancel."
+msgstr "再次操作以清理缓存壁纸，按 Escape 取消。"
+
+msgid "Settings operation in progress."
+msgstr "设置操作正在进行。"
+
+msgid "External action in progress. Settings can be closed."
+msgstr "外部操作正在进行，可以关闭设置。"
+
+msgid "Press Escape to cancel cache confirmation."
+msgstr "按 Escape 取消缓存清理确认。"
+
+msgid "Press Escape to close settings."
+msgstr "按 Escape 关闭设置。"
+
+msgid "Operation in Progress"
+msgstr "操作正在进行"
+
+msgid "Close Settings"
+msgstr "关闭设置"
+
+msgid "Busy"
+msgstr "忙碌"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Settings Category"
+msgstr "设置分类"
+
+msgid "Wallpaper"
+msgstr "壁纸"
+
+msgid "App"
+msgstr "应用"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "ABOUT"
+msgstr "关于"

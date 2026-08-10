@@ -1,0 +1,70 @@
+[package]
+name = "spotlit"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "A cross-platform desktop wallpaper companion for Windows Spotlight and Bing wallpapers."
+documentation = "https://docs.rs/spotlit"
+homepage = "https://github.com/oksyd/spotlit"
+repository = "https://github.com/oksyd/spotlit"
+readme = "README.md"
+categories = ["gui"]
+keywords = ["wallpaper", "spotlight", "bing", "desktop"]
+rust-version = "1.97.1"
+include = [
+    "/build.rs",
+    "/README.md",
+    "/LICENSE",
+    "/src/**",
+    "/extensions/gnome-shell/lock-screen@spotlit.app/extension.js",
+    "/extensions/gnome-shell/lock-screen@spotlit.app/metadata.json",
+    "/extensions/gnome-shell/lock-screen@spotlit.app/prefs.js",
+    "/extensions/gnome-shell/lock-screen@spotlit.app/schemas/org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml",
+    "/extensions/gnome-shell/lock-screen@spotlit.app/stylesheet.css",
+    "/resources/i18n/**",
+    "/resources/icons/**",
+]
+
+[dependencies]
+anyhow = { version = "1.0.102", default-features = false, features = ["std"] }
+thiserror = { version = "2.0.18", default-features = false, features = ["std"] }
+
+chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde", "std"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0.150", default-features = false, features = ["std"] }
+semver = { version = "1.0.28", default-features = false, features = ["std"] }
+
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
+sha2 = { version = "0.11.0", default-features = false }
+
+slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "compat-1-2", "renderer-femtovg", "renderer-software", "std", "system-tray", "unstable-winit-030"] }
+reqx = { version = "0.1.41", default-features = false, features = ["blocking-tls-rustls-ring"] }
+sys-locale = { version = "0.3.2", default-features = false }
+
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["env-filter", "fmt", "std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", default-features = false, features = ["std", "Storage", "Storage_Streams", "System_UserProfile", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Shutdown", "Win32_System_Threading", "Win32_UI_Controls_Dialogs", "Win32_UI_WindowsAndMessaging"] }
+
+[dev-dependencies]
+slint-snapshot = { version = "=0.1.1", features = ["testing"] }
+
+[build-dependencies]
+resvg = { version = "0.47.0", default-features = false }
+slint-build = { version = "1.17.1", default-features = false, features = ["default"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+
+[workspace.metadata.release]
+shared-version = true
+consolidate-commits = true
+publish = false
+tag-prefix = ""
+tag-name = "{{prefix}}{{version}}"
+pre-release-commit-message = "chore: release {{version}}"
+tag-message = "chore: release {{version}}"

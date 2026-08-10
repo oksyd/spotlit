@@ -1,0 +1,31 @@
+.TH SPOTLIT 1 "Spotlit" "Spotlit Manual"
+.SH NAME
+spotlit \- manage Bing and Windows Spotlight wallpapers
+.SH SYNOPSIS
+.B spotlit
+.RI [ --background ]
+.SH DESCRIPTION
+.B Spotlit
+maintains a local wallpaper library and applies wallpapers manually or on a
+configurable schedule. On Linux, it retrieves recent Bing wallpapers. On
+Windows, it uses Windows Spotlight metadata when available.
+.PP
+Starting Spotlit does not change the desktop wallpaper, install the optional
+GNOME Shell extension, or modify extension preferences. Those actions require
+explicit interaction in the application.
+.SH OPTIONS
+.TP
+.B --background
+Start without presenting the main window. This mode is used by startup
+integration and keeps Spotlit available through its system tray icon.
+.SH FILES
+.TP
+.I ~/.config/spotlit
+Per-user configuration.
+.TP
+.I ~/.local/share/spotlit
+Per-user application data on Linux.
+.SH SEE ALSO
+.UR https://github.com/oksyd/spotlit
+Project website
+.UE

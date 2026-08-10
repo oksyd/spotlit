@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  TZ: UTC
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2025
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends \
+            appstream \
+            desktop-file-utils \
+            libfontconfig1-dev \
+            libglib2.0-bin \
+            libxml2-utils \
+            libwayland-dev \
+            libxkbcommon-dev
+
+      - name: Restore Cargo cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/cargo-about
+            target/debug
+            target/release
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Install cargo-about
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          installed_version="$(cargo about --version 2>/dev/null || true)"
+          if [[ "${installed_version}" != "cargo-about 0.9.1" ]]; then
+            cargo install --locked --features cli --version 0.9.1 cargo-about
+          fi
+
+      - name: Validate Linux desktop metadata
+        if: runner.os == 'Linux'
+        run: |
+          desktop-file-validate resources/packaging/linux/spotlit.desktop
+          appstreamcli validate --strict --no-net resources/packaging/linux/io.github.oksyd.spotlit.metainfo.xml
+          package_version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "spotlit") | .version')"
+          metainfo_version="$(xmllint --xpath 'string(/component/releases/release[1]/@version)' resources/packaging/linux/io.github.oksyd.spotlit.metainfo.xml)"
+          test "${metainfo_version}" = "${package_version}"
+
+      - name: Generate third-party license report
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p target/legal
+          cargo fetch --locked
+          if ! cargo about generate \
+              --config resources/packaging/licenses/about.toml \
+              --locked \
+              --offline \
+              --fail \
+              --output-file target/legal/THIRD-PARTY-LICENSES.txt \
+              resources/packaging/licenses/third-party.hbs \
+              2>target/legal/cargo-about.log; then
+            cat target/legal/cargo-about.log >&2
+            exit 1
+          fi
+          if [[ -s target/legal/cargo-about.log ]]; then
+            cat target/legal/cargo-about.log >&2
+            exit 1
+          fi
+          test -s target/legal/THIRD-PARTY-LICENSES.txt
+          ! grep -Fq "&quot;" target/legal/THIRD-PARTY-LICENSES.txt
+          ! grep -Eq '^- spotlit ' target/legal/THIRD-PARTY-LICENSES.txt
+          grep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
+            target/legal/THIRD-PARTY-LICENSES.txt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Run tests
+        run: cargo test --all-targets --locked
+
+      - name: Validate Cargo package
+        if: runner.os == 'Linux'
+        run: cargo package --locked

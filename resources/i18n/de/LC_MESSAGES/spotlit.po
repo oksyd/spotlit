@@ -1,0 +1,755 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: spotlit 0.1.0\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Added to favorites"
+msgstr "Zu Favoriten hinzugefügt"
+
+msgid "Adding favorite"
+msgstr "Favorit wird hinzugefügt"
+
+msgid "Applying wallpaper"
+msgstr "Hintergrundbild wird angewendet"
+
+msgid "Auto sync enabled and synced"
+msgstr "Automatik aktiviert und synchronisiert"
+
+msgid "Background setting saved"
+msgstr "Hintergrundeinstellung gespeichert"
+
+msgid "Bing Wallpaper"
+msgstr "Bing-Hintergrundbild"
+
+msgid "Blur setting request failed"
+msgstr "Unschärfeeinstellung fehlgeschlagen"
+
+msgid "Cache cleaned"
+msgstr "Cache geleert"
+
+msgid "Check failed"
+msgstr "Prüfung fehlgeschlagen"
+
+msgid "Checking for updates"
+msgstr "Suche nach Updates"
+
+msgid "Clearing cache"
+msgstr "Cache wird geleert"
+
+msgid "Current Desktop"
+msgstr "Aktueller Desktop"
+
+msgid "Current version"
+msgstr "Aktuelle Version"
+
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+msgid "Export canceled"
+msgstr "Export abgebrochen"
+
+msgid "Export request failed"
+msgstr "Exportanfrage fehlgeschlagen"
+
+msgid "Extension install request failed"
+msgstr "Installation der Erweiterung fehlgeschlagen"
+
+msgid "Extension request failed"
+msgstr "Erweiterungsanfrage fehlgeschlagen"
+
+msgid "Favorite request failed"
+msgstr "Favoritenanfrage fehlgeschlagen"
+
+msgid "German"
+msgstr "Deutsch"
+
+msgid "GNOME extension disabled"
+msgstr "GNOME-Erweiterung deaktiviert"
+
+msgid "GNOME extension enabled"
+msgstr "GNOME-Erweiterung aktiviert"
+
+msgid "GNOME extension installed"
+msgstr "GNOME-Erweiterung installiert"
+
+msgid "History limit saved"
+msgstr "Verlaufslimit gespeichert"
+
+msgid "Import canceled"
+msgstr "Import abgebrochen"
+
+msgid "Import request failed"
+msgstr "Importanfrage fehlgeschlagen"
+
+msgid "Library"
+msgstr "Bibliothek"
+
+msgid "Library refreshed"
+msgstr "Bibliothek aktualisiert"
+
+msgid "Library up to date"
+msgstr "Bibliothek ist aktuell"
+
+msgid "Language setting saved"
+msgstr "Spracheinstellung gespeichert"
+
+msgid "Light"
+msgstr "Hell"
+
+msgid "Lock Screen"
+msgstr "Sperrbildschirm"
+
+msgid "Lock screen blur saved"
+msgstr "Sperrbildschirm-Unschärfe gespeichert"
+
+msgid "Lock screen display request failed"
+msgstr "Sperrbildschirm-Anzeige konnte nicht gespeichert werden"
+
+msgid "Lock screen display saved"
+msgstr "Sperrbildschirm-Anzeige gespeichert"
+
+msgid "No releases published"
+msgstr "Keine Version veröffentlicht"
+
+msgid "Not Installed"
+msgstr "Nicht installiert"
+
+msgid "Open folder request failed"
+msgstr "Ordner konnte nicht geöffnet werden"
+
+msgid "Open release page request failed"
+msgstr "Versionsseite konnte nicht geöffnet werden"
+
+msgid "Open web page request failed"
+msgstr "Webseite konnte nicht geöffnet werden"
+
+msgid "Opened current image"
+msgstr "Aktuelles Bild geöffnet"
+
+msgid "Opened data folder"
+msgstr "Datenordner geöffnet"
+
+msgid "Opened favorites folder"
+msgstr "Favoritenordner geöffnet"
+
+msgid "Opened logs folder"
+msgstr "Protokollordner geöffnet"
+
+msgid "Opened Spotlit release page"
+msgstr "Spotlit-Versionsseite geöffnet"
+
+msgid "Opened wallpaper info"
+msgstr "Hintergrundinformationen geöffnet"
+
+msgid "Opening"
+msgstr "Wird geöffnet"
+
+msgid "Opening data folder"
+msgstr "Datenordner wird geöffnet"
+
+msgid "Opening export dialog"
+msgstr "Exportdialog wird geöffnet"
+
+msgid "Opening favorites folder"
+msgstr "Favoritenordner wird geöffnet"
+
+msgid "Opening file"
+msgstr "Datei wird geöffnet"
+
+msgid "Opening import dialog"
+msgstr "Importdialog wird geöffnet"
+
+msgid "Opening logs folder"
+msgstr "Protokollordner wird geöffnet"
+
+msgid "Opening release page"
+msgstr "Versionsseite wird geöffnet"
+
+msgid "Opening web page"
+msgstr "Webseite wird geöffnet"
+
+msgid "Preview cache updated"
+msgstr "Vorschau-Cache aktualisiert"
+
+msgid "Ready"
+msgstr "Bereit"
+
+msgid "Refresh request failed"
+msgstr "Aktualisierung fehlgeschlagen"
+
+msgid "Refreshing library"
+msgstr "Bibliothek wird aktualisiert"
+
+msgid "Remove request failed"
+msgstr "Entfernen fehlgeschlagen"
+
+msgid "Removed from favorites"
+msgstr "Aus Favoriten entfernt"
+
+msgid "Removing favorite"
+msgstr "Favorit wird entfernt"
+
+msgid "Removing wallpaper"
+msgstr "Hintergrundbild wird entfernt"
+
+msgid "Restart Required"
+msgstr "Neuanmeldung erforderlich"
+
+msgid "Reveal request failed"
+msgstr "Datei konnte nicht angezeigt werden"
+
+msgid "Saving settings"
+msgstr "Einstellungen werden gespeichert"
+
+msgid "Selected file is not a supported landscape wallpaper"
+msgstr "Die gewählte Datei ist kein unterstütztes Querformatbild"
+
+msgid "Settings request failed"
+msgstr "Einstellungsanfrage fehlgeschlagen"
+
+msgid "Settings saved"
+msgstr "Einstellungen gespeichert"
+
+msgid "Simplified Chinese"
+msgstr "Vereinfachtes Chinesisch"
+
+msgid "Soft"
+msgstr "Sanft"
+
+msgid "Startup setting saved"
+msgstr "Autostart-Einstellung gespeichert"
+
+msgid "Sync interval saved"
+msgstr "Synchronisierungsintervall gespeichert"
+
+msgid "Sync request failed"
+msgstr "Synchronisierung fehlgeschlagen"
+
+msgid "System"
+msgstr "System"
+
+msgid "System (Dark)"
+msgstr "System (Dunkel)"
+
+msgid "System (Light)"
+msgstr "System (Hell)"
+
+msgid "Theme setting saved"
+msgstr "Design-Einstellung gespeichert"
+
+msgid "Unavailable"
+msgstr "Nicht verfügbar"
+
+msgid "Unlimited"
+msgstr "Unbegrenzt"
+
+msgid "Unsupported"
+msgstr "Nicht unterstützt"
+
+msgid "Update check could not be started"
+msgstr "Updateprüfung konnte nicht gestartet werden"
+
+msgid "Update setting saved"
+msgstr "Update-Einstellung gespeichert"
+
+msgid "Wallpaper applied"
+msgstr "Hintergrundbild angewendet"
+
+msgid "Wallpaper source saved"
+msgstr "Bildquelle gespeichert"
+
+msgid "Dark"
+msgstr "Dunkel"
+
+msgid "Clear"
+msgstr "Klar"
+
+msgid "Favorites"
+msgstr "Favoriten"
+
+msgid "Current version v{}"
+msgstr "Aktuelle Version v{}"
+
+msgid "Version v{} available"
+msgstr "Version v{} verfügbar"
+
+msgid "Up to date (v{})"
+msgstr "Aktuell (v{})"
+
+msgid "{} wallpapers"
+msgstr "{} Hintergrundbilder"
+
+msgid "{} favorites"
+msgstr "{} Favoriten"
+
+msgid "{} minutes"
+msgstr "{} Minuten"
+
+msgid "Sync {}"
+msgstr "Synchronisiert {}"
+
+msgid "Update check failed: {}"
+msgstr "Updateprüfung fehlgeschlagen: {}"
+
+msgid "Failed: {}"
+msgstr "Fehlgeschlagen: {}"
+
+msgid "Cache cleaned: {} wallpapers removed"
+msgstr "Cache geleert: {} Bilder entfernt"
+
+msgid "History limit saved: {} wallpapers removed"
+msgstr "Verlaufslimit gespeichert: {} Bilder entfernt"
+
+msgid "Imported {}"
+msgstr "{} importiert"
+
+msgid "Exported to {}"
+msgstr "Exportiert nach {}"
+
+msgid "Opened {}"
+msgstr "{} geöffnet"
+
+msgid "Removed {}"
+msgstr "{} entfernt"
+
+msgid "Spotlit"
+msgstr "Spotlit"
+
+msgid "Not checked"
+msgstr "Nicht geprüft"
+
+msgid "Loading preview"
+msgstr "Vorschau wird geladen"
+
+msgid "Preview pending"
+msgstr "Vorschau ausstehend"
+
+msgid "STATUS"
+msgstr "STATUS"
+
+msgid "CURRENT WALLPAPER"
+msgstr "AKTUELLES BILD"
+
+msgid "NOT IN FAVORITES"
+msgstr "NICHT IN FAVORITEN"
+
+msgid "SELECTED WALLPAPER"
+msgstr "AUSGEWÄHLTES BILD"
+
+msgid "Selected Wallpaper Preview"
+msgstr "Vorschau des gewählten Bildes"
+
+msgid "Current Wallpaper Preview"
+msgstr "Vorschau des aktuellen Bildes"
+
+msgid "PREVIEW"
+msgstr "VORSCHAU"
+
+msgid "No Wallpaper"
+msgstr "Kein Hintergrundbild"
+
+msgid "Refreshing"
+msgstr "Aktualisieren"
+
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+msgid "Import"
+msgstr "Importieren"
+
+msgid "Wallpaper Details"
+msgstr "Bilddetails"
+
+msgid "FILE"
+msgstr "DATEI"
+
+msgid "Open Wallpaper Info"
+msgstr "Bildinformationen öffnen"
+
+msgid "Web"
+msgstr "Web"
+
+msgid "Reveal Wallpaper File"
+msgstr "Bilddatei anzeigen"
+
+msgid "Reveal"
+msgstr "Anzeigen"
+
+msgid "Export Wallpaper"
+msgstr "Bild exportieren"
+
+msgid "Export"
+msgstr "Exportieren"
+
+msgid "Removing"
+msgstr "Entfernen"
+
+msgid "Confirm Remove"
+msgstr "Entfernen bestätigen"
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Removing Wallpaper"
+msgstr "Bild wird entfernt"
+
+msgid "Confirm Remove Wallpaper"
+msgstr "Bildentfernung bestätigen"
+
+msgid "Remove Wallpaper"
+msgstr "Bild entfernen"
+
+msgid "Activate again to remove this wallpaper. Press Escape to cancel."
+msgstr "Erneut ausführen, um das Bild zu entfernen. Escape bricht ab."
+
+msgid "Waiting for wallpaper"
+msgstr "Warte auf Hintergrundbild"
+
+msgid "Show Current Wallpaper"
+msgstr "Aktuelles Bild anzeigen"
+
+msgid "Current"
+msgstr "Aktuell"
+
+msgid "Hide Wallpaper Details"
+msgstr "Bilddetails ausblenden"
+
+msgid "Show Wallpaper Details"
+msgstr "Bilddetails anzeigen"
+
+msgid "Hide"
+msgstr "Ausblenden"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Applying"
+msgstr "Anwenden"
+
+msgid "Apply"
+msgstr "Anwenden"
+
+msgid "Applying Wallpaper"
+msgstr "Bild wird angewendet"
+
+msgid "Apply Wallpaper"
+msgstr "Bild anwenden"
+
+msgid "Refresh Library"
+msgstr "Bibliothek aktualisieren"
+
+msgid "Import Wallpaper"
+msgstr "Bild importieren"
+
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "All Wallpapers"
+msgstr "Alle Hintergrundbilder"
+
+msgid "No Wallpapers"
+msgstr "Keine Hintergrundbilder"
+
+msgid "Favorite Wallpapers"
+msgstr "Favorisierte Bilder"
+
+msgid "No Favorites"
+msgstr "Keine Favoriten"
+
+msgid "Show All"
+msgstr "Alle anzeigen"
+
+msgid "Open Spotlit"
+msgstr "Spotlit öffnen"
+
+msgid "Open Data Folder"
+msgstr "Datenordner öffnen"
+
+msgid "Lock Workstation"
+msgstr "Arbeitsplatz sperren"
+
+msgid "Quit"
+msgstr "Beenden"
+
+msgid "Operation in progress"
+msgstr "Vorgang läuft"
+
+msgid "Selected option"
+msgstr "Ausgewählte Option"
+
+msgid "Available option"
+msgstr "Verfügbare Option"
+
+msgid "Selected settings page"
+msgstr "Ausgewählte Einstellungsseite"
+
+msgid "Available settings page"
+msgstr "Verfügbare Einstellungsseite"
+
+msgid "Remove Favorite"
+msgstr "Favorit entfernen"
+
+msgid "Add Favorite"
+msgstr "Favorit hinzufügen"
+
+msgid "Favorite"
+msgstr "Favorit"
+
+msgid "Favorite update in progress"
+msgstr "Favorit wird aktualisiert"
+
+msgid "Selected filter"
+msgstr "Ausgewählter Filter"
+
+msgid "Available filter"
+msgstr "Verfügbarer Filter"
+
+msgid "Library Filters"
+msgstr "Bibliotheksfilter"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "Toggle favorite for this wallpaper"
+msgstr "Favoritenstatus dieses Bildes ändern"
+
+msgid "Wallpaper Library"
+msgstr "Hintergrundbibliothek"
+
+msgid "WALLPAPER"
+msgstr "HINTERGRUNDBILD"
+
+msgid "Auto Apply"
+msgstr "Automatisch anwenden"
+
+msgid "Target"
+msgstr "Ziel"
+
+msgid "Source"
+msgstr "Quelle"
+
+msgid "Wallpaper Source"
+msgstr "Bildquelle"
+
+msgid "Sync Interval"
+msgstr "Synchronisierungsintervall"
+
+msgid "Sync interval"
+msgstr "Synchronisierungsintervall"
+
+msgid "15 min"
+msgstr "15 Min."
+
+msgid "30 min"
+msgstr "30 Min."
+
+msgid "60 min"
+msgstr "60 Min."
+
+msgid "GNOME LOCK SCREEN"
+msgstr "GNOME-SPERRBILDSCHIRM"
+
+msgid "Extension"
+msgstr "Erweiterung"
+
+msgid "Install"
+msgstr "Installieren"
+
+msgid "Install GNOME Lock Screen Extension"
+msgstr "GNOME-Sperrbildschirm-Erweiterung installieren"
+
+msgid "Enable"
+msgstr "Aktivieren"
+
+msgid "Enable GNOME Lock Screen Extension"
+msgstr "GNOME-Sperrbildschirm-Erweiterung aktivieren"
+
+msgid "Disable"
+msgstr "Deaktivieren"
+
+msgid "Disable GNOME Lock Screen Extension"
+msgstr "GNOME-Sperrbildschirm-Erweiterung deaktivieren"
+
+msgid "Blur"
+msgstr "Unschärfe"
+
+msgid "Lock Screen Blur"
+msgstr "Sperrbildschirm-Unschärfe"
+
+msgid "Display"
+msgstr "Anzeige"
+
+msgid "Lock Screen Display"
+msgstr "Sperrbildschirm-Anzeige"
+
+msgid "Plugged In"
+msgstr "Netzbetrieb"
+
+msgid "Always"
+msgstr "Immer"
+
+msgid "APP"
+msgstr "APP"
+
+msgid "Start at Login"
+msgstr "Beim Anmelden starten"
+
+msgid "Keep Running in Background"
+msgstr "Im Hintergrund weiterlaufen"
+
+msgid "Automatic Update Checks"
+msgstr "Automatisch nach Updates suchen"
+
+msgid "Theme"
+msgstr "Design"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "Interface Language"
+msgstr "Oberflächensprache"
+
+msgid "English"
+msgstr "Englisch"
+
+msgid "Chinese"
+msgstr "Chinesisch"
+
+msgid "Updates"
+msgstr "Updates"
+
+msgid "View"
+msgstr "Anzeigen"
+
+msgid "Check"
+msgstr "Prüfen"
+
+msgid "View Latest Spotlit Release"
+msgstr "Neueste Spotlit-Version anzeigen"
+
+msgid "Check for Spotlit Updates"
+msgstr "Nach Spotlit-Updates suchen"
+
+msgid "Diagnostics"
+msgstr "Diagnose"
+
+msgid "Metrics"
+msgstr "Messwerte"
+
+msgid "Diagnostics Metrics"
+msgstr "Diagnosemesswerte"
+
+msgid "Startup"
+msgstr "Start"
+
+msgid "First Scan"
+msgstr "Erster Scan"
+
+msgid "First Snapshot"
+msgstr "Erste Momentaufnahme"
+
+msgid "Main Preview"
+msgstr "Hauptvorschau"
+
+msgid "Thumbnails"
+msgstr "Miniaturansichten"
+
+msgid "STORAGE"
+msgstr "SPEICHER"
+
+msgid "Saved Limit"
+msgstr "Speicherlimit"
+
+msgid "Saved Wallpaper Limit"
+msgstr "Limit gespeicherter Bilder"
+
+msgid "100"
+msgstr "100"
+
+msgid "250"
+msgstr "250"
+
+msgid "500"
+msgstr "500"
+
+msgid "Folders"
+msgstr "Ordner"
+
+msgid "Data Folder"
+msgstr "Datenordner"
+
+msgid "Open Favorites Folder"
+msgstr "Favoritenordner öffnen"
+
+msgid "Favorites Folder"
+msgstr "Favoritenordner"
+
+msgid "Open Logs Folder"
+msgstr "Protokollordner öffnen"
+
+msgid "Logs Folder"
+msgstr "Protokollordner"
+
+msgid "Cache"
+msgstr "Cache"
+
+msgid "Clearing"
+msgstr "Leeren"
+
+msgid "Confirm Clear"
+msgstr "Leeren bestätigen"
+
+msgid "Clear Cache"
+msgstr "Cache leeren"
+
+msgid "Clearing Cache"
+msgstr "Cache wird geleert"
+
+msgid "Confirm Clear Cache"
+msgstr "Cache-Leerung bestätigen"
+
+msgid "Activate again to clear cached wallpapers. Press Escape to cancel."
+msgstr "Erneut ausführen, um den Cache zu leeren. Escape bricht ab."
+
+msgid "Settings operation in progress."
+msgstr "Einstellungsvorgang läuft."
+
+msgid "External action in progress. Settings can be closed."
+msgstr "Externer Vorgang läuft. Einstellungen können geschlossen werden."
+
+msgid "Press Escape to cancel cache confirmation."
+msgstr "Escape bricht die Cache-Bestätigung ab."
+
+msgid "Press Escape to close settings."
+msgstr "Escape schließt die Einstellungen."
+
+msgid "Operation in Progress"
+msgstr "Vorgang läuft"
+
+msgid "Close Settings"
+msgstr "Einstellungen schließen"
+
+msgid "Busy"
+msgstr "Beschäftigt"
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Settings Category"
+msgstr "Einstellungskategorie"
+
+msgid "Wallpaper"
+msgstr "Hintergrundbild"
+
+msgid "App"
+msgstr "App"
+
+msgid "Storage"
+msgstr "Speicher"
+
+msgid "ABOUT"
+msgstr "ÜBER"

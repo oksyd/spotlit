@@ -1,0 +1,20 @@
+Spotlit Third-Party Licenses
+============================
+
+This document is generated from Cargo.lock by cargo-about. It lists the
+licenses of third-party Rust crates included in Spotlit release binaries.
+
+{{#each licenses}}
+===============================================================================
+{{name}}
+
+Used by:
+{{#each used_by}}
+{{#if crate.source}}
+- {{crate.name}} {{crate.version}}{{#if crate.repository}} ({{crate.repository}}){{/if}}
+{{/if}}
+{{/each}}
+
+{{{text}}}
+
+{{/each}}
