@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
+    thread,
 };
 
 use resvg::{
@@ -12,6 +13,7 @@ type BuildResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 const APP_NAME: &str = "Spotlit";
 const EXE_NAME: &str = "spotlit.exe";
+const UI_COMPILER_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;
 const ICON_GROUP_ID: u16 = 1;
 const LANGUAGE_EN_US: u16 = 0x0409;
 const MEMORY_FLAGS: u16 = 0x1030;
@@ -31,13 +33,26 @@ fn main() -> BuildResult<()> {
     println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
     verify_translation_catalogs()?;
 
-    let config = slint_build::CompilerConfiguration::new()
-        .with_bundled_translations("resources/i18n")
-        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
-    slint_build::compile_with_config("src/ui/app-window.slint", config)?;
+    compile_ui()?;
     generate_windows_resources()?;
 
     Ok(())
+}
+
+fn compile_ui() -> BuildResult<()> {
+    thread::Builder::new()
+        .name("slint-ui-compiler".into())
+        .stack_size(UI_COMPILER_THREAD_STACK_SIZE)
+        .spawn(|| {
+            let config = slint_build::CompilerConfiguration::new()
+                .with_bundled_translations("resources/i18n")
+                .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+            slint_build::compile_with_config("src/ui/app-window.slint", config)
+                .map_err(|error| error.to_string())
+        })?
+        .join()
+        .map_err(|_| "Slint UI compiler thread panicked")?
+        .map_err(Into::into)
 }
 
 fn verify_translation_catalogs() -> BuildResult<()> {
