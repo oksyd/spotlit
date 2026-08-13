@@ -2,8 +2,8 @@ use windows::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{InvalidateRect, RDW_ALLCHILDREN, RDW_FRAME, RDW_INVALIDATE, RedrawWindow},
     UI::WindowsAndMessaging::{
-        BringWindowToTop, IsIconic, IsWindowVisible, SW_HIDE, SW_RESTORE, SW_SHOW,
-        SetForegroundWindow, ShowWindow,
+        BringWindowToTop, IsIconic, IsWindowVisible, SW_RESTORE, SW_SHOW, SetForegroundWindow,
+        ShowWindow,
     },
 };
 
@@ -32,12 +32,6 @@ pub fn restore_window(handle: NativeWindowHandle) {
         let _ = ShowWindow(hwnd, command);
         let _ = BringWindowToTop(hwnd);
         let _ = SetForegroundWindow(hwnd);
-    }
-}
-
-pub fn hide_window(handle: NativeWindowHandle) {
-    unsafe {
-        let _ = ShowWindow(handle.hwnd(), SW_HIDE);
     }
 }
 

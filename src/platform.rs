@@ -61,6 +61,13 @@ pub enum SystemTheme {
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(
+    windows,
+    allow(
+        dead_code,
+        reason = "GNOME integration states remain part of the shared platform model"
+    )
+)]
 pub enum LockScreenIntegrationState {
     #[default]
     Unsupported,
@@ -250,8 +257,7 @@ impl SingleInstanceGuard {
     fn acquire() -> Result<Option<Self>> {
         #[cfg(windows)]
         {
-            return windows::SingleInstanceGuard::acquire()
-                .map(|inner| inner.map(|inner| Self { inner }));
+            windows::SingleInstanceGuard::acquire().map(|inner| inner.map(|inner| Self { inner }))
         }
 
         #[cfg(target_os = "linux")]

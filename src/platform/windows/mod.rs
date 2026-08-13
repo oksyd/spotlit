@@ -25,6 +25,4 @@ pub use single_instance::SingleInstanceGuard;
 pub use startup::{StartupRegistration, StartupState};
 pub use theme::{SystemTheme, system_theme};
 pub use thread_priority::enter_background_thread_mode;
-pub use window::{
-    NativeWindowHandle, force_window_redraw, hide_window, restore_window, window_is_visible,
-};
+pub use window::{NativeWindowHandle, force_window_redraw, restore_window, window_is_visible};

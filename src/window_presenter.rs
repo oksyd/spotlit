@@ -141,7 +141,7 @@ fn current_lifecycle_generation() -> u64 {
 fn native_window_is_visible(app: &MainWindow) -> bool {
     #[cfg(windows)]
     {
-        return native_window_handle(app).is_some_and(window_is_visible);
+        native_window_handle(app).is_some_and(window_is_visible)
     }
 
     #[cfg(not(windows))]
