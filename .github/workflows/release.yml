@@ -262,8 +262,9 @@ jobs:
           gzip -t "${extracted}/usr/share/man/man1/spotlit.1.gz"
           gzip -t "${extracted}/usr/share/doc/spotlit/changelog.Debian.gz"
           gzip -t "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz"
-          zgrep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
-            "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz"
+          gzip -cd "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz" \
+            | grep -F "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
+              >/dev/null
           lintian --fail-on error "${package}"
           sudo apt-get --simulate install "${PWD}/${package}"
 
