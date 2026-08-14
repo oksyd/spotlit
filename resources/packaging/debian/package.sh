@@ -2,12 +2,32 @@
 set -euo pipefail
 umask 0022
 
+debian_package_version() {
+    local release_version="$1"
+    local debian_version="${release_version/-/\~}-1"
+
+    if ! dpkg --validate-version "${debian_version}"; then
+        echo "Invalid Debian package version: ${debian_version}" >&2
+        return 1
+    fi
+    printf '%s\n' "${debian_version}"
+}
+
+if [[ "${1:-}" == "--print-version" ]]; then
+    if [[ $# -ne 2 ]]; then
+        echo "Usage: $0 --print-version <release-version>" >&2
+        exit 2
+    fi
+    debian_package_version "$2"
+    exit
+fi
+
 if [[ $# -ne 4 ]]; then
     echo "Usage: $0 <version> <binary> <third-party-licenses> <output-directory>" >&2
     exit 2
 fi
 
-version="$1"
+release_version="$1"
 binary="$2"
 third_party_licenses="$3"
 output_dir="$4"
@@ -23,10 +43,7 @@ if [[ ! -f "${third_party_licenses}" ]]; then
     echo "Third-party license report does not exist: ${third_party_licenses}" >&2
     exit 1
 fi
-if ! dpkg --validate-version "${version}"; then
-    echo "Invalid Debian package version: ${version}" >&2
-    exit 1
-fi
+debian_version="$(debian_package_version "${release_version}")"
 if [[ "$(dpkg --print-architecture)" != "amd64" ]]; then
     echo "The current package definition only supports amd64." >&2
     exit 1
@@ -59,23 +76,10 @@ install -Dm644 "${repo_root}/README.md" "${package_root}/usr/share/doc/spotlit/R
 install -Dm644 \
     "${third_party_licenses}" \
     "${package_root}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt"
-
-copyright_path="${package_root}/usr/share/doc/spotlit/copyright"
-{
-    printf '%s\n' \
-        'Spotlit' \
-        'Copyright: 2026 oksyd' \
-        'License: Apache-2.0' \
-        '' \
-        '===============================================================================' \
-        'Spotlit license' \
-        '===============================================================================' \
-        ''
-    cat "${repo_root}/LICENSE"
-    printf '\n\n'
-    cat "${third_party_licenses}"
-} > "${copyright_path}"
-chmod 0644 "${copyright_path}"
+gzip -9n "${package_root}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt"
+install -Dm644 \
+    "${resources_dir}/packaging/debian/copyright" \
+    "${package_root}/usr/share/doc/spotlit/copyright"
 
 install -Dm644 \
     "${resources_dir}/packaging/linux/spotlit.1" \
@@ -85,8 +89,8 @@ gzip -9n "${package_root}/usr/share/man/man1/spotlit.1"
 build_date="$(LC_ALL=C date --utc --date="@${SOURCE_DATE_EPOCH}" --rfc-email)"
 changelog_path="${package_root}/usr/share/doc/spotlit/changelog.Debian"
 {
-    printf 'spotlit (%s) unstable; urgency=medium\n\n' "${version}"
-    printf '  * Release Spotlit %s.\n\n' "${version}"
+    printf 'spotlit (%s) unstable; urgency=medium\n\n' "${debian_version}"
+    printf '  * Release Spotlit %s.\n\n' "${release_version}"
     printf ' -- oksyd <oksyd@users.noreply.github.com>  %s\n' "${build_date}"
 } > "${changelog_path}"
 gzip -9n "${changelog_path}"
@@ -120,7 +124,7 @@ installed_size="$(du -sk "${package_root}/usr" | cut -f1)"
 install -d -m755 "${package_root}/DEBIAN"
 cat > "${package_root}/DEBIAN/control" <<EOF
 Package: spotlit
-Version: ${version}
+Version: ${debian_version}
 Section: utils
 Priority: optional
 Architecture: amd64
@@ -139,6 +143,6 @@ find "${package_root}" -exec \
     touch --no-dereference --date="@${SOURCE_DATE_EPOCH}" {} +
 
 mkdir -p "${output_dir}"
-package_path="${output_dir}/spotlit_${version}_amd64.deb"
+package_path="${output_dir}/spotlit_${debian_version}_amd64.deb"
 dpkg-deb --root-owner-group --build "${package_root}" "${package_path}"
 echo "Debian package: ${package_path}"

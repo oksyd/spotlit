@@ -211,6 +211,8 @@ jobs:
       - name: Create and verify Debian package reproducibility
         shell: bash
         run: |
+          debian_version="$(bash resources/packaging/debian/package.sh \
+            --print-version "${RELEASE_TAG}")"
           bash resources/packaging/debian/package.sh \
             "${RELEASE_TAG}" \
             target/release/spotlit \
@@ -222,16 +224,18 @@ jobs:
             target/legal/THIRD-PARTY-LICENSES.txt \
             target/repro-check
           cmp \
-            "target/dist/spotlit_${RELEASE_TAG}_amd64.deb" \
-            "target/repro-check/spotlit_${RELEASE_TAG}_amd64.deb"
+            "target/dist/spotlit_${debian_version}_amd64.deb" \
+            "target/repro-check/spotlit_${debian_version}_amd64.deb"
 
       - name: Verify Debian package
         shell: bash
         run: |
-          package="target/dist/spotlit_${RELEASE_TAG}_amd64.deb"
+          debian_version="$(bash resources/packaging/debian/package.sh \
+            --print-version "${RELEASE_TAG}")"
+          package="target/dist/spotlit_${debian_version}_amd64.deb"
           extracted="target/deb-verify"
           test "$(dpkg-deb --field "${package}" Package)" = "spotlit"
-          test "$(dpkg-deb --field "${package}" Version)" = "${RELEASE_TAG}"
+          test "$(dpkg-deb --field "${package}" Version)" = "${debian_version}"
           test "$(dpkg-deb --field "${package}" Architecture)" = "amd64"
           test -n "$(dpkg-deb --field "${package}" Depends)"
 
@@ -249,7 +253,7 @@ jobs:
             usr/share/man/man1/spotlit.1.gz \
             usr/share/doc/spotlit/changelog.Debian.gz \
             usr/share/doc/spotlit/copyright \
-            usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt; do
+            usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz; do
             test -f "${extracted}/${path}"
           done
           desktop-file-validate "${extracted}/usr/share/applications/spotlit.desktop"
@@ -257,8 +261,9 @@ jobs:
             "${extracted}/usr/share/metainfo/io.github.oksyd.spotlit.metainfo.xml"
           gzip -t "${extracted}/usr/share/man/man1/spotlit.1.gz"
           gzip -t "${extracted}/usr/share/doc/spotlit/changelog.Debian.gz"
-          grep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
-            "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt"
+          gzip -t "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz"
+          zgrep -Fq "Slint Royalty-free Desktop, Mobile, and Web Applications License" \
+            "${extracted}/usr/share/doc/spotlit/THIRD-PARTY-LICENSES.txt.gz"
           lintian --fail-on error "${package}"
           sudo apt-get --simulate install "${PWD}/${package}"
 
@@ -417,8 +422,14 @@ jobs:
       - name: Generate and verify checksums
         shell: bash
         run: |
+          shopt -s nullglob
+          debian_packages=(target/dist/spotlit_*_amd64.deb)
+          if (( ${#debian_packages[@]} != 1 )); then
+            echo "Expected exactly one Debian package, found ${#debian_packages[@]}." >&2
+            exit 1
+          fi
           linux_archive="spotlit-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz"
-          debian_package="spotlit_${RELEASE_TAG}_amd64.deb"
+          debian_package="${debian_packages[0]#target/dist/}"
           windows_archive="spotlit-${RELEASE_TAG}-x86_64-pc-windows-msvc.zip"
           license_report="THIRD-PARTY-LICENSES.txt"
           for asset in \
