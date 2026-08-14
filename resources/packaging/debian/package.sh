@@ -4,7 +4,7 @@ umask 0022
 
 debian_package_version() {
     local release_version="$1"
-    local debian_version="${release_version/-/\~}-1"
+    local debian_version="${release_version/-/\~}"
 
     if ! dpkg --validate-version "${debian_version}"; then
         echo "Invalid Debian package version: ${debian_version}" >&2
@@ -87,7 +87,7 @@ install -Dm644 \
 gzip -9n "${package_root}/usr/share/man/man1/spotlit.1"
 
 build_date="$(LC_ALL=C date --utc --date="@${SOURCE_DATE_EPOCH}" --rfc-email)"
-changelog_path="${package_root}/usr/share/doc/spotlit/changelog.Debian"
+changelog_path="${package_root}/usr/share/doc/spotlit/changelog"
 {
     printf 'spotlit (%s) unstable; urgency=medium\n\n' "${debian_version}"
     printf '  * Release Spotlit %s.\n\n' "${release_version}"
