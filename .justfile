@@ -3,6 +3,9 @@ set quiet := true
 default:
     just --list
 
+patch:
+    cargo release patch --no-publish --execute
+
 ci:
     cargo fmt --all -- --check
     cargo check --workspace --all-targets --all-features

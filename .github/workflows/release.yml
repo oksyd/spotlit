@@ -31,6 +31,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Verify tagged commit is on main
+        shell: bash
+        run: |
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Tag ${RELEASE_TAG} does not point to a commit on main." >&2
+            exit 1
+          fi
+
       - name: Set reproducible build timestamp
         shell: bash
         run: echo "SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD)" >> "${GITHUB_ENV}"

@@ -61,10 +61,17 @@ panic = "abort"
 strip = "symbols"
 
 [workspace.metadata.release]
+allow-branch = ["main"]
 shared-version = true
 consolidate-commits = true
 publish = false
 tag-prefix = ""
 tag-name = "{{prefix}}{{version}}"
+pre-release-replacements = [
+    { file = "resources/packaging/linux/io.github.oksyd.spotlit.metainfo.xml", search = "  <releases>", replace = """  <releases>
+    <release version="{{version}}" date="{{date}}">
+      <url>https://github.com/oksyd/spotlit/releases/tag/{{version}}</url>
+    </release>""", exactly = 1, prerelease = true },
+]
 pre-release-commit-message = "chore: release {{version}}"
 tag-message = "chore: release {{version}}"
