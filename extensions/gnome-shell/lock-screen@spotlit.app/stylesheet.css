@@ -1,8 +1,5 @@
-.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock,
-.unlock-dialog.spotlit-clear-mode .spotlit-unlock-prompt-card {
-  background-color: rgba(18, 18, 20, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  padding: 24px 32px;
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-time,
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-date,
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-hint {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.82);
 }

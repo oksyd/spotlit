@@ -2,7 +2,7 @@
   "uuid": "lock-screen@spotlit.app",
   "name": "Spotlit Lock Screen",
   "description": "Use a separate Spotlit wallpaper on the GNOME lock screen.",
-  "version": 5,
+  "version": 6,
   "url": "https://github.com/oksyd/spotlit",
   "shell-version": ["50"],
   "session-modes": ["user", "unlock-dialog"],

@@ -21,12 +21,15 @@ const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
 const INTERFACE_SCHEMA = 'org.gnome.desktop.interface';
 const LOCK_SCREEN_SCHEMA = 'org.gnome.desktop.screensaver';
 const CLEAR_MODE_CLASS = 'spotlit-clear-mode';
-const PROMPT_CARD_CLASS = 'spotlit-unlock-prompt-card';
 const KEEP_VISIBLE_INTERVAL_SECONDS = 10;
 
 const BLUR_PRESETS = Object.freeze({
     soft: Object.freeze({brightness: 0.82, radius: 36}),
-    clear: Object.freeze({brightness: 1.0, radius: 0}),
+});
+const CLEAR_BACKGROUND = Object.freeze({
+    restBrightness: 0.90,
+    promptBrightness: 0.42,
+    promptRadius: 20,
 });
 
 const DISPLAY_MODES = Object.freeze({
@@ -249,12 +252,12 @@ export default class SpotlitLockScreenExtension extends Extension {
 
         this._injectionManager.overrideMethod(
             UnlockDialog.prototype,
-            '_ensureAuthPrompt',
+            '_setTransitionProgress',
             originalMethod => {
                 const extension = this;
-                return function (...args) {
-                    const result = originalMethod.apply(this, args);
-                    extension._updatePromptCard(this);
+                return function (progress) {
+                    const result = originalMethod.call(this, progress);
+                    extension._updateClearBackgroundEffects(this, progress);
                     return result;
                 };
             });
@@ -280,7 +283,6 @@ export default class SpotlitLockScreenExtension extends Extension {
         for (const [dialog, destroyId] of this._dialogs ?? []) {
             dialog.disconnect(destroyId);
             dialog.remove_style_class_name(CLEAR_MODE_CLASS);
-            dialog._promptBox?.remove_style_class_name(PROMPT_CARD_CLASS);
             dialog._updateBackgrounds();
         }
 
@@ -322,13 +324,20 @@ export default class SpotlitLockScreenExtension extends Extension {
         else
             dialog.remove_style_class_name(CLEAR_MODE_CLASS);
 
-        this._updatePromptCard(dialog);
-
-        const preset = BLUR_PRESETS[mode];
-        if (!preset) {
+        if (mode === 'system') {
             originalMethod.call(dialog);
             return;
         }
+
+        if (mode === 'clear') {
+            this._updateClearBackgroundEffects(
+                dialog, dialog._adjustment?.value ?? 0);
+            return;
+        }
+
+        const preset = BLUR_PRESETS[mode];
+        if (!preset)
+            return;
 
         const themeContext = St.ThemeContext.get_for_stage(global.stage);
         for (const widget of dialog._backgroundGroup) {
@@ -339,15 +348,32 @@ export default class SpotlitLockScreenExtension extends Extension {
         }
     }
 
-    _updatePromptCard(dialog) {
-        if (this._settings.get_string('blur-mode') === 'clear')
-            dialog._promptBox?.add_style_class_name(PROMPT_CARD_CLASS);
-        else
-            dialog._promptBox?.remove_style_class_name(PROMPT_CARD_CLASS);
+    _updateClearBackgroundEffects(dialog, rawProgress) {
+        if (this._settings.get_string('blur-mode') !== 'clear')
+            return;
+
+        const progress = Math.max(0, Math.min(1, rawProgress));
+        const brightness = mix(
+            CLEAR_BACKGROUND.restBrightness,
+            CLEAR_BACKGROUND.promptBrightness,
+            progress);
+        const radius = CLEAR_BACKGROUND.promptRadius * progress;
+        const themeContext = St.ThemeContext.get_for_stage(global.stage);
+
+        for (const widget of dialog._backgroundGroup) {
+            widget.get_effect('blur')?.set({
+                brightness,
+                radius: radius * themeContext.scale_factor,
+            });
+        }
     }
 
     _refreshDialogs() {
         for (const dialog of this._dialogs.keys())
             dialog._updateBackgroundEffects();
     }
+}
+
+function mix(start, end, progress) {
+    return start + (end - start) * progress;
 }

@@ -16,7 +16,7 @@ fn gnome_extension_metadata_targets_shell_50_lock_screen_sessions()
     )?)?;
 
     assert_eq!(metadata["uuid"], EXTENSION_UUID);
-    assert_eq!(metadata["version"], 5);
+    assert_eq!(metadata["version"], 6);
     assert_eq!(metadata["url"], "https://github.com/oksyd/spotlit");
     assert_eq!(metadata["shell-version"], serde_json::json!(["50"]));
     assert_eq!(
@@ -89,19 +89,27 @@ fn display_policy_tracks_lock_and_power_lifecycle() -> Result<(), Box<dyn std::e
 fn clear_mode_styles_are_scoped_to_the_unlock_dialog() -> Result<(), Box<dyn std::error::Error>> {
     let stylesheet = fs::read_to_string(Path::new(EXTENSION_ROOT).join("stylesheet.css"))?;
 
-    assert!(stylesheet.contains(".unlock-dialog.spotlit-clear-mode .unlock-dialog-clock"));
-    assert!(stylesheet.contains(".unlock-dialog.spotlit-clear-mode .spotlit-unlock-prompt-card"));
+    assert!(stylesheet.contains(".unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-time"));
+    assert!(stylesheet.contains("text-shadow:"));
+    assert!(!stylesheet.contains("background-color:"));
+    assert!(!stylesheet.contains("border:"));
+    assert!(!stylesheet.contains("box-shadow:"));
     assert!(!stylesheet.contains(".login-dialog.spotlit-clear-mode"));
     Ok(())
 }
 
 #[test]
-fn clear_mode_card_targets_the_stable_prompt_container() -> Result<(), Box<dyn std::error::Error>> {
+fn clear_mode_transitions_the_full_background_for_authentication()
+-> Result<(), Box<dyn std::error::Error>> {
     let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("extension.js"))?;
 
-    assert!(source.contains("dialog._promptBox?.add_style_class_name(PROMPT_CARD_CLASS)"));
-    assert!(source.contains("dialog._promptBox?.remove_style_class_name(PROMPT_CARD_CLASS)"));
-    assert!(!source.contains("dialog._authPrompt?.add_style_class_name(PROMPT_CARD_CLASS)"));
+    assert!(source.contains("'_setTransitionProgress'"));
+    assert!(source.contains("extension._updateClearBackgroundEffects(this, progress)"));
+    assert!(source.contains("restBrightness: 0.90"));
+    assert!(source.contains("promptBrightness: 0.42"));
+    assert!(source.contains("promptRadius: 20"));
+    assert!(!source.contains("PROMPT_CARD_CLASS"));
+    assert!(!source.contains("dialog._promptBox?.add_style_class_name"));
     Ok(())
 }
 
