@@ -28,6 +28,9 @@
   <url type="homepage">https://github.com/oksyd/spotlit</url>
   <url type="bugtracker">https://github.com/oksyd/spotlit/issues</url>
   <releases>
+    <release version="0.1.6" date="2026-08-17">
+      <url>https://github.com/oksyd/spotlit/releases/tag/0.1.6</url>
+    </release>
     <release version="0.1.5" date="2026-08-17">
       <url>https://github.com/oksyd/spotlit/releases/tag/0.1.5</url>
     </release>
