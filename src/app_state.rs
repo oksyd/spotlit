@@ -51,8 +51,11 @@ pub struct AppState {
     preview_generation: Arc<AtomicU64>,
     preview_loader: PreviewLoaderHandle,
     auto_sync_state: Arc<(Mutex<bool>, Condvar)>,
-    update_check_pending: Arc<AtomicBool>,
+    update_dir: PathBuf,
+    update_operation_pending: Arc<AtomicBool>,
     automatic_update_check_decided: Arc<AtomicBool>,
+    available_update: Arc<Mutex<Option<crate::update::ReleaseInfo>>>,
+    prepared_update: Arc<Mutex<Option<crate::update::PreparedUpdate>>>,
 }
 
 #[derive(Clone)]
@@ -96,15 +99,21 @@ impl AppState {
         lock_screen: Arc<dyn LockScreenService>,
         platform: Arc<dyn PlatformServices>,
     ) -> io::Result<Self> {
+        let update_dir = paths.data_dir.join("updates");
         let worker = Worker::open_lazy(paths, sources, lock_screen, platform);
-        Self::start(ui, worker, false)
+        Self::start(ui, worker, false, update_dir)
     }
 
-    fn start(ui: UiSink, worker: Worker, auto_sync_enabled: bool) -> io::Result<Self> {
+    fn start(
+        ui: UiSink,
+        worker: Worker,
+        auto_sync_enabled: bool,
+        update_dir: PathBuf,
+    ) -> io::Result<Self> {
         let latest_snapshot = Arc::new(Mutex::new(None));
         let snapshot_load_pending = Arc::new(AtomicBool::new(false));
         let auto_sync_state = Arc::new((Mutex::new(auto_sync_enabled), Condvar::new()));
-        let update_check_pending = Arc::new(AtomicBool::new(false));
+        let update_operation_pending = Arc::new(AtomicBool::new(false));
         let automatic_update_check_decided = Arc::new(AtomicBool::new(false));
         let ui_events = ui.clone();
         let worker_latest_snapshot = Arc::clone(&latest_snapshot);
@@ -140,14 +149,16 @@ impl AppState {
             preview_generation,
             preview_loader,
             auto_sync_state,
-            update_check_pending,
+            update_dir,
+            update_operation_pending,
             automatic_update_check_decided,
+            available_update: Arc::new(Mutex::new(None)),
+            prepared_update: Arc::new(Mutex::new(None)),
         })
     }
 
     pub fn install(&self, app: &MainWindow) {
-        app.set_update_status_kind("current".into());
-        app.set_update_status_version(env!("CARGO_PKG_VERSION").into());
+        self.restore_cached_update_state(app);
 
         let state = self.clone();
         let ui = app.as_weak();
@@ -374,10 +385,8 @@ impl AppState {
 
         let state = self.clone();
         let ui = app.as_weak();
-        app.on_update_release_requested(move || {
-            if !state.dispatch(Command::OpenReleasePage) {
-                clear_pending_external_action(&ui, "Open release page request failed");
-            }
+        app.on_update_action_requested(move || {
+            state.handle_update_action(ui.clone());
         });
 
         let state = self.clone();
@@ -482,6 +491,263 @@ impl AppState {
         );
     }
 
+    fn restore_cached_update_state(&self, app: &MainWindow) {
+        match crate::update::cached_update_check(&self.update_dir) {
+            Ok(Some(check)) => self.apply_update_check(app, check),
+            Ok(None) => set_current_update_status(app),
+            Err(error) => {
+                tracing::warn!(%error, "failed to load cached update state");
+                set_current_update_status(app);
+            }
+        }
+    }
+
+    fn apply_update_check(&self, app: &MainWindow, check: crate::update::UpdateCheck) {
+        match check {
+            crate::update::UpdateCheck::NoRelease => {
+                clear_update_slot(&self.available_update, "available update");
+                clear_update_slot(&self.prepared_update, "prepared update");
+                app.set_update_status_kind("no-release".into());
+                app.set_update_status_version("".into());
+                app.set_update_action_kind("check".into());
+            }
+            crate::update::UpdateCheck::Available { release } => {
+                let version = release.version.to_string();
+                let ready = self.prepared_update.lock().is_ok_and(|prepared| {
+                    prepared
+                        .as_ref()
+                        .is_some_and(|prepared| prepared.version == release.version)
+                });
+                replace_update_slot(&self.available_update, release.clone(), "available update");
+                app.set_update_status_version(version.into());
+                if ready {
+                    app.set_update_status_kind("ready".into());
+                    app.set_update_action_kind("install".into());
+                } else {
+                    clear_update_slot(&self.prepared_update, "prepared update");
+                    app.set_update_status_kind("available".into());
+                    app.set_update_action_kind(
+                        if crate::update::release_is_downloadable(&release) {
+                            "download"
+                        } else {
+                            "view"
+                        }
+                        .into(),
+                    );
+                }
+            }
+            crate::update::UpdateCheck::UpToDate { release } => {
+                clear_update_slot(&self.available_update, "available update");
+                clear_update_slot(&self.prepared_update, "prepared update");
+                app.set_update_status_kind("up-to-date".into());
+                app.set_update_status_version(release.version.to_string().into());
+                app.set_update_action_kind("check".into());
+            }
+        }
+    }
+
+    fn handle_update_action(&self, ui: slint::Weak<MainWindow>) {
+        let prepared = match self.prepared_update.lock() {
+            Ok(prepared) => prepared.clone(),
+            Err(error) => {
+                tracing::warn!(%error, "prepared update state was poisoned");
+                show_update_feedback(&ui, "Update install could not be started");
+                return;
+            }
+        };
+        if let Some(prepared) = prepared {
+            self.install_update_async(ui, prepared);
+            return;
+        }
+
+        let release = match self.available_update.lock() {
+            Ok(release) => release.clone(),
+            Err(error) => {
+                tracing::warn!(%error, "available update state was poisoned");
+                show_update_feedback(&ui, "Update download could not be started");
+                return;
+            }
+        };
+        if let Some(release) = release
+            && crate::update::release_is_downloadable(&release)
+        {
+            self.download_update_async(ui, release);
+            return;
+        }
+
+        if !self.dispatch(Command::OpenReleasePage) {
+            clear_pending_external_action(&ui, "Open release page request failed");
+        }
+    }
+
+    fn download_update_async(
+        &self,
+        ui: slint::Weak<MainWindow>,
+        release: crate::update::ReleaseInfo,
+    ) -> bool {
+        if !self.begin_update_operation() {
+            return false;
+        }
+        let Some(app) = ui.upgrade() else {
+            self.finish_update_operation();
+            return false;
+        };
+        app.set_update_status_kind("downloading".into());
+        app.set_update_status_version(release.version.to_string().into());
+        app.set_update_action_kind("none".into());
+        drop(app);
+
+        let state = self.clone();
+        let result_ui = ui.clone();
+        let spawn = thread::Builder::new()
+            .name("spotlit-update-download".to_string())
+            .stack_size(BACKGROUND_THREAD_STACK_SIZE)
+            .spawn(move || {
+                let result = crate::update::download_update(&release, &state.update_dir).and_then(
+                    |prepared| {
+                        let version = prepared.version.clone();
+                        state
+                            .prepared_update
+                            .lock()
+                            .map_err(|error| anyhow::anyhow!("prepared update state: {error}"))?
+                            .replace(prepared);
+                        Ok(version)
+                    },
+                );
+                if let Err(error) = &result {
+                    tracing::warn!(%error, "Spotlit update download failed");
+                }
+                state.finish_update_operation();
+
+                if let Err(error) = slint::invoke_from_event_loop(move || {
+                    let Some(app) = result_ui.upgrade() else {
+                        return;
+                    };
+                    match result {
+                        Ok(version) => {
+                            app.set_update_status_kind("ready".into());
+                            app.set_update_status_version(version.to_string().into());
+                            app.set_update_action_kind("install".into());
+                        }
+                        Err(error) => {
+                            app.set_update_status_kind("download-failed".into());
+                            app.set_update_action_kind("download".into());
+                            crate::ui_events::show_settings_feedback(
+                                &app,
+                                format!("Update download failed: {error}"),
+                            );
+                        }
+                    }
+                }) {
+                    tracing::warn!(%error, "failed to post update download result");
+                }
+            });
+
+        if let Err(error) = spawn {
+            self.finish_update_operation();
+            if let Some(app) = ui.upgrade() {
+                app.set_update_status_kind("download-failed".into());
+                app.set_update_action_kind("download".into());
+                crate::ui_events::show_settings_feedback(
+                    &app,
+                    "Update download could not be started",
+                );
+            }
+            tracing::warn!(%error, "failed to start update download thread");
+            return false;
+        }
+        true
+    }
+
+    fn install_update_async(
+        &self,
+        ui: slint::Weak<MainWindow>,
+        prepared: crate::update::PreparedUpdate,
+    ) -> bool {
+        if !self.begin_update_operation() {
+            return false;
+        }
+        let Some(app) = ui.upgrade() else {
+            self.finish_update_operation();
+            return false;
+        };
+        app.set_update_status_kind("installing".into());
+        app.set_update_action_kind("none".into());
+        drop(app);
+
+        let state = self.clone();
+        let result_ui = ui.clone();
+        let spawn = thread::Builder::new()
+            .name("spotlit-update-install".to_string())
+            .stack_size(BACKGROUND_THREAD_STACK_SIZE)
+            .spawn(move || {
+                let result = crate::update::install_prepared_update(&prepared);
+                if let Err(error) = &result {
+                    tracing::warn!(%error, "Spotlit update install failed");
+                }
+                state.finish_update_operation();
+
+                if let Err(error) = slint::invoke_from_event_loop(move || {
+                    let Some(app) = result_ui.upgrade() else {
+                        return;
+                    };
+                    match result {
+                        #[cfg(target_os = "linux")]
+                        Ok(crate::update::InstallDisposition::ExternalInstaller) => {
+                            app.set_update_status_kind("installer-opened".into());
+                            app.set_update_action_kind("install".into());
+                            crate::ui_events::show_settings_feedback(
+                                &app,
+                                "Opened update in the system installer",
+                            );
+                        }
+                        #[cfg(windows)]
+                        Ok(crate::update::InstallDisposition::Restarting) => {
+                            if let Err(error) = slint::quit_event_loop() {
+                                tracing::warn!(%error, "failed to exit for Spotlit update");
+                            }
+                        }
+                        Err(error) => {
+                            app.set_update_status_kind("install-failed".into());
+                            app.set_update_action_kind("install".into());
+                            crate::ui_events::show_settings_feedback(
+                                &app,
+                                format!("Update install failed: {error}"),
+                            );
+                        }
+                    }
+                }) {
+                    tracing::warn!(%error, "failed to post update install result");
+                }
+            });
+
+        if let Err(error) = spawn {
+            self.finish_update_operation();
+            if let Some(app) = ui.upgrade() {
+                app.set_update_status_kind("install-failed".into());
+                app.set_update_action_kind("install".into());
+                crate::ui_events::show_settings_feedback(
+                    &app,
+                    "Update install could not be started",
+                );
+            }
+            tracing::warn!(%error, "failed to start update install thread");
+            return false;
+        }
+        true
+    }
+
+    fn begin_update_operation(&self) -> bool {
+        self.update_operation_pending
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+    }
+
+    fn finish_update_operation(&self) {
+        self.update_operation_pending
+            .store(false, Ordering::Release);
+    }
+
     fn schedule_automatic_update_check(
         &self,
         ui: slint::Weak<MainWindow>,
@@ -517,7 +783,16 @@ impl AppState {
             }
 
             if enabled {
-                state.check_for_updates_async(ui, false);
+                match crate::update::automatic_check_due(&state.update_dir) {
+                    Ok(true) => {
+                        state.check_for_updates_async(ui, false);
+                    }
+                    Ok(false) => {}
+                    Err(error) => {
+                        tracing::warn!(%error, "failed to read update check cadence");
+                        state.check_for_updates_async(ui, false);
+                    }
+                }
             }
         });
     }
@@ -527,58 +802,63 @@ impl AppState {
             self.automatic_update_check_decided
                 .store(true, Ordering::Release);
         }
-        if self
-            .update_check_pending
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
+        if !self.begin_update_operation() {
             return false;
         }
 
         let Some(app) = ui.upgrade() else {
-            self.update_check_pending.store(false, Ordering::Release);
+            self.finish_update_operation();
             return false;
         };
-        app.set_update_check_pending(true);
         app.set_update_status_kind("checking".into());
+        app.set_update_action_kind("none".into());
         drop(app);
 
-        let pending = Arc::clone(&self.update_check_pending);
+        let state = self.clone();
         let result_ui = ui.clone();
         let spawn = thread::Builder::new()
             .name("spotlit-update-check".to_string())
             .stack_size(BACKGROUND_THREAD_STACK_SIZE)
             .spawn(move || {
                 let result = crate::update::check_for_update().map_err(|error| error.to_string());
+                let cache_result = match &result {
+                    Ok(check) => Ok(check.clone()),
+                    Err(error) => Err(anyhow::anyhow!(error.clone())),
+                };
+                if let Err(error) =
+                    crate::update::record_check_result(&state.update_dir, &cache_result)
+                {
+                    tracing::warn!(%error, "failed to persist update check result");
+                }
                 if let Err(error) = &result {
                     tracing::warn!(%error, "Spotlit update check failed");
                 }
-                pending.store(false, Ordering::Release);
+                state.finish_update_operation();
 
                 if let Err(error) = slint::invoke_from_event_loop(move || {
                     let Some(app) = result_ui.upgrade() else {
                         return;
                     };
 
-                    app.set_update_check_pending(false);
                     match result {
                         Ok(crate::update::UpdateCheck::NoRelease) => {
-                            app.set_update_status_kind("no-release".into());
-                            app.set_update_status_version("".into());
-                            app.set_update_release_available(false);
+                            state.apply_update_check(&app, crate::update::UpdateCheck::NoRelease);
                         }
-                        Ok(crate::update::UpdateCheck::Available { latest }) => {
-                            app.set_update_status_kind("available".into());
-                            app.set_update_status_version(latest.to_string().into());
-                            app.set_update_release_available(true);
+                        Ok(crate::update::UpdateCheck::Available { release }) => {
+                            state.apply_update_check(
+                                &app,
+                                crate::update::UpdateCheck::Available { release },
+                            );
                         }
-                        Ok(crate::update::UpdateCheck::UpToDate { latest }) => {
-                            app.set_update_status_kind("up-to-date".into());
-                            app.set_update_status_version(latest.to_string().into());
-                            app.set_update_release_available(false);
+                        Ok(crate::update::UpdateCheck::UpToDate { release }) => {
+                            state.apply_update_check(
+                                &app,
+                                crate::update::UpdateCheck::UpToDate { release },
+                            );
                         }
                         Err(error) => {
-                            app.set_update_status_kind("failed".into());
+                            app.set_update_status_kind("check-failed".into());
+                            app.set_update_action_kind(state.failed_check_action_kind().into());
                             if user_initiated {
                                 crate::ui_events::show_settings_feedback(
                                     &app,
@@ -593,10 +873,10 @@ impl AppState {
             });
 
         if let Err(error) = spawn {
-            self.update_check_pending.store(false, Ordering::Release);
+            self.finish_update_operation();
             if let Some(app) = ui.upgrade() {
-                app.set_update_check_pending(false);
-                app.set_update_status_kind("failed".into());
+                app.set_update_status_kind("check-failed".into());
+                app.set_update_action_kind(self.failed_check_action_kind().into());
                 if user_initiated {
                     crate::ui_events::show_settings_feedback(
                         &app,
@@ -609,6 +889,24 @@ impl AppState {
         }
 
         true
+    }
+
+    fn failed_check_action_kind(&self) -> &'static str {
+        match self.available_update.lock() {
+            Ok(release)
+                if release
+                    .as_ref()
+                    .is_some_and(crate::update::release_is_downloadable) =>
+            {
+                "download"
+            }
+            Ok(release) if release.is_some() => "view",
+            Ok(_) => "check",
+            Err(error) => {
+                tracing::warn!(%error, "available update state was poisoned");
+                "check"
+            }
+        }
     }
 
     pub fn refresh_async(&self) -> bool {
@@ -1015,6 +1313,36 @@ impl AppState {
         if !apply_cached_selected_preview(&ui, &id, &path) {
             self.load_selected_preview_async(id, PathBuf::from(path));
         }
+    }
+}
+
+fn set_current_update_status(app: &MainWindow) {
+    app.set_update_status_kind("current".into());
+    app.set_update_status_version(env!("CARGO_PKG_VERSION").into());
+    app.set_update_action_kind("check".into());
+}
+
+fn clear_update_slot<T>(slot: &Mutex<Option<T>>, label: &'static str) {
+    match slot.lock() {
+        Ok(mut value) => {
+            *value = None;
+        }
+        Err(error) => tracing::warn!(%error, label, "update state was poisoned"),
+    }
+}
+
+fn replace_update_slot<T>(slot: &Mutex<Option<T>>, value: T, label: &'static str) {
+    match slot.lock() {
+        Ok(mut current) => {
+            *current = Some(value);
+        }
+        Err(error) => tracing::warn!(%error, label, "update state was poisoned"),
+    }
+}
+
+fn show_update_feedback(ui: &slint::Weak<MainWindow>, message: &'static str) {
+    if let Some(app) = ui.upgrade() {
+        crate::ui_events::show_settings_feedback(&app, message);
     }
 }
 

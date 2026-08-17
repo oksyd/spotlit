@@ -753,3 +753,48 @@ msgstr "Speicher"
 
 msgid "ABOUT"
 msgstr "ÜBER"
+
+msgid "Downloading update"
+msgstr "Update wird heruntergeladen"
+
+msgid "Ready to install v{}"
+msgstr "Bereit zur Installation von v{}"
+
+msgid "Preparing installation"
+msgstr "Installation wird vorbereitet"
+
+msgid "System installer opened for v{}"
+msgstr "Systeminstallationsprogramm für v{} geöffnet"
+
+msgid "Download failed"
+msgstr "Download fehlgeschlagen"
+
+msgid "Installation failed"
+msgstr "Installation fehlgeschlagen"
+
+msgid "Download"
+msgstr "Herunterladen"
+
+msgid "Install"
+msgstr "Installieren"
+
+msgid "Download Spotlit Update"
+msgstr "Spotlit-Update herunterladen"
+
+msgid "Install Spotlit Update"
+msgstr "Spotlit-Update installieren"
+
+msgid "Update download could not be started"
+msgstr "Update-Download konnte nicht gestartet werden"
+
+msgid "Update install could not be started"
+msgstr "Update-Installation konnte nicht gestartet werden"
+
+msgid "Opened update in the system installer"
+msgstr "Update im Systeminstallationsprogramm geöffnet"
+
+msgid "Update download failed: {}"
+msgstr "Update-Download fehlgeschlagen: {}"
+
+msgid "Update install failed: {}"
+msgstr "Update-Installation fehlgeschlagen: {}"

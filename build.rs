@@ -31,6 +31,7 @@ fn main() -> BuildResult<()> {
     println!("cargo:rerun-if-changed=src/ui/app-window.slint");
     println!("cargo:rerun-if-changed=resources/icons/spotlit-logo.svg");
     println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
+    println!("cargo:rerun-if-env-changed=SPOTLIT_DISTRIBUTION");
     verify_translation_catalogs()?;
 
     compile_ui()?;

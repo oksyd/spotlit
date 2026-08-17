@@ -178,6 +178,8 @@ jobs:
           path: target/legal
 
       - name: Build release binary
+        env:
+          SPOTLIT_DISTRIBUTION: github-linux-deb
         run: cargo build --release --locked --bin spotlit
 
       - name: Create and verify Linux archive
@@ -317,6 +319,8 @@ jobs:
           path: target/legal
 
       - name: Build release binary
+        env:
+          SPOTLIT_DISTRIBUTION: github-windows-portable
         run: cargo build --release --locked --bin spotlit
 
       - name: Verify Windows GUI subsystem

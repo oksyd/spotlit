@@ -753,3 +753,48 @@ msgstr "存储"
 
 msgid "ABOUT"
 msgstr "关于"
+
+msgid "Downloading update"
+msgstr "正在下载更新"
+
+msgid "Ready to install v{}"
+msgstr "已准备安装 v{}"
+
+msgid "Preparing installation"
+msgstr "正在准备安装"
+
+msgid "System installer opened for v{}"
+msgstr "已在系统安装器中打开 v{}"
+
+msgid "Download failed"
+msgstr "下载失败"
+
+msgid "Installation failed"
+msgstr "安装失败"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Install"
+msgstr "安装"
+
+msgid "Download Spotlit Update"
+msgstr "下载 Spotlit 更新"
+
+msgid "Install Spotlit Update"
+msgstr "安装 Spotlit 更新"
+
+msgid "Update download could not be started"
+msgstr "无法启动更新下载"
+
+msgid "Update install could not be started"
+msgstr "无法启动更新安装"
+
+msgid "Opened update in the system installer"
+msgstr "已在系统安装器中打开更新"
+
+msgid "Update download failed: {}"
+msgstr "更新下载失败：{}"
+
+msgid "Update install failed: {}"
+msgstr "更新安装失败：{}"

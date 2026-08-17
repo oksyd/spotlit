@@ -30,6 +30,9 @@ impl RuntimeHandles {
 }
 
 pub fn run_from_env() -> anyhow::Result<()> {
+    if crate::update::try_apply_pending_update(env::args_os().skip(1))? {
+        return Ok(());
+    }
     run(env::args().skip(1))
 }
 

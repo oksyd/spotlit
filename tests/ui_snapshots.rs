@@ -26,13 +26,13 @@ slint::slint! {
         lock-screen-display-text: "Plugged In";
         lock-screen-apply-available: false;
         update-status-text: root.snapshot-update-status;
-        update-release-available: root.snapshot-update-available;
+        update-action-kind: root.snapshot-update-action;
 
         in-out property <bool> snapshot-show-settings: false;
         in-out property <string> snapshot-settings-page: "wallpaper";
         in-out property <bool> snapshot-dark-theme: false;
         in-out property <string> snapshot-update-status: "Up to date (v0.1.0)";
-        in-out property <bool> snapshot-update-available: false;
+        in-out property <string> snapshot-update-action: "check";
 
         show-settings: root.snapshot-show-settings;
         settings-page: root.snapshot-settings-page;
@@ -78,7 +78,7 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
 
         if page == "app" {
             ui.set_snapshot_update_status("Version v0.2.0 available".into());
-            ui.set_snapshot_update_available(true);
+            ui.set_snapshot_update_action("download".into());
             check_snapshot(
                 &runtime,
                 &ui,
@@ -88,7 +88,7 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
                 &store,
             )?;
             ui.set_snapshot_update_status("Up to date (v0.1.0)".into());
-            ui.set_snapshot_update_available(false);
+            ui.set_snapshot_update_action("check".into());
         }
     }
 

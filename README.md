@@ -10,7 +10,7 @@ Spotlit is a cross-platform desktop wallpaper companion built with Rust and Slin
 - Retrieves recent Bing wallpapers on Linux without changing desktop settings at startup.
 - Provides an optional GNOME Shell extension for an independent lock screen wallpaper, blur styling, and lock screen display policy.
 - Supports English, Simplified Chinese, and German interfaces while preserving wallpaper-provided titles and descriptions.
-- Checks GitHub Releases for Spotlit updates when automatic checks are enabled.
+- Checks GitHub Releases for updates and supports verified, user-confirmed installation in packaged builds.
 
 ## Development
 
@@ -22,7 +22,7 @@ cargo test --all-targets
 cargo clippy --all-targets -- -D warnings
 ```
 
-Starting Spotlit does not install the GNOME extension or write extension preferences. Wallpaper application, startup registration, extension installation, and extension preference changes require explicit user actions.
+Starting Spotlit does not install the GNOME extension, write extension preferences, or install application updates. Wallpaper application, startup registration, extension installation, extension preference changes, and update installation require explicit user actions. Source builds can detect releases but cannot replace themselves.
 
 ## GNOME Extension
 

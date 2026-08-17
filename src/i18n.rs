@@ -112,6 +112,12 @@ pub(crate) fn message(app: &MainWindow, value: &str) -> SharedString {
     if let Some(error) = value.strip_prefix("Update check failed: ") {
         return i18n.invoke_update_check_failed(error.into());
     }
+    if let Some(error) = value.strip_prefix("Update download failed: ") {
+        return i18n.invoke_update_download_failed(error.into());
+    }
+    if let Some(error) = value.strip_prefix("Update install failed: ") {
+        return i18n.invoke_update_install_failed(error.into());
+    }
     if let Some(error) = value.strip_prefix("Failed: ") {
         return i18n.invoke_failed(error.into());
     }

@@ -42,8 +42,8 @@ component SettingsPageContent inherits VerticalLayout {
   in property <string> history-limit-text: "250 wallpapers";
   in property <string> theme-text: "System";
   in property <string> update-status-text: "Not checked";
-  in property <bool> update-check-pending: false;
-  in property <bool> update-release-available: false;
+  in property <string> update-status-kind: "not-checked";
+  in property <string> update-action-kind: "check";
   in property <string> diagnostics-startup: "-";
   in property <string> diagnostics-first-scan: "-";
   in property <string> diagnostics-first-snapshot: "-";
@@ -86,7 +86,7 @@ component SettingsPageContent inherits VerticalLayout {
   callback open-favorites-folder-requested();
   callback open-logs-folder-requested();
   callback update-check-requested();
-  callback update-release-requested();
+  callback update-action-requested();
 
   pure function localized-state(value: string) -> string {
     if value == "Unsupported" { return @tr("Unsupported"); }
@@ -536,17 +536,32 @@ component SettingsPageContent inherits VerticalLayout {
       }
 
       Button {
-        text: root.update-release-available ? @tr("View") : @tr("Check");
-        assistive-label: root.update-release-available ? @tr("View Latest Spotlit Release") : @tr("Check for Spotlit Updates");
-        enabled: root.controls-enabled && !root.external-action-pending;
-        busy: root.update-check-pending || (root.external-action-pending && root.external-action-key == "update-release");
+        text: root.update-action-kind == "view"
+          ? @tr("View")
+          : root.update-action-kind == "download"
+            ? @tr("Download")
+            : root.update-action-kind == "install"
+              ? @tr("Install")
+              : @tr("Check");
+        assistive-label: root.update-action-kind == "view"
+          ? @tr("View Latest Spotlit Release")
+          : root.update-action-kind == "download"
+            ? @tr("Download Spotlit Update")
+            : root.update-action-kind == "install"
+              ? @tr("Install Spotlit Update")
+              : @tr("Check for Spotlit Updates");
+        enabled: root.controls-enabled && root.update-action-kind != "none" && !root.external-action-pending;
+        busy: root.update-status-kind == "checking"
+          || root.update-status-kind == "downloading"
+          || root.update-status-kind == "installing"
+          || (root.external-action-pending && root.external-action-key == "update-release");
         dark-theme: root.dark-theme;
-        width: 76px;
+        width: 108px;
         clicked => {
-          if root.update-release-available {
-            root.update-release-requested();
-          } else {
+          if root.update-action-kind == "check" {
             root.update-check-requested();
+          } else {
+            root.update-action-requested();
           }
         }
       }
@@ -797,8 +812,8 @@ export component SettingsModal inherits FocusScope {
   in property <string> history-limit-text: "250 wallpapers";
   in property <string> theme-text: "System";
   in property <string> update-status-text: "Not checked";
-  in property <bool> update-check-pending: false;
-  in property <bool> update-release-available: false;
+  in property <string> update-status-kind: "not-checked";
+  in property <string> update-action-kind: "check";
   in property <string> diagnostics-startup: "-";
   in property <string> diagnostics-first-scan: "-";
   in property <string> diagnostics-first-snapshot: "-";
@@ -892,7 +907,7 @@ export component SettingsModal inherits FocusScope {
   callback open-favorites-folder-requested();
   callback open-logs-folder-requested();
   callback update-check-requested();
-  callback update-release-requested();
+  callback update-action-requested();
 
   function clear-cache-confirmation() {
     if root.pending-clean-cache {
@@ -1088,8 +1103,8 @@ export component SettingsModal inherits FocusScope {
               history-limit-text: root.history-limit-text;
               theme-text: root.theme-text;
               update-status-text: root.update-status-text;
-              update-check-pending: root.update-check-pending;
-              update-release-available: root.update-release-available;
+              update-status-kind: root.update-status-kind;
+              update-action-kind: root.update-action-kind;
               diagnostics-startup: root.diagnostics-startup;
               diagnostics-first-scan: root.diagnostics-first-scan;
               diagnostics-first-snapshot: root.diagnostics-first-snapshot;
@@ -1170,8 +1185,8 @@ export component SettingsModal inherits FocusScope {
               update-check-requested => {
                 root.update-check-requested();
               }
-              update-release-requested => {
-                root.update-release-requested();
+              update-action-requested => {
+                root.update-action-requested();
               }
             }
           }
@@ -1257,8 +1272,8 @@ export component SettingsModal inherits FocusScope {
                 history-limit-text: root.history-limit-text;
                 theme-text: root.theme-text;
                 update-status-text: root.update-status-text;
-                update-check-pending: root.update-check-pending;
-                update-release-available: root.update-release-available;
+                update-status-kind: root.update-status-kind;
+                update-action-kind: root.update-action-kind;
                 diagnostics-startup: root.diagnostics-startup;
                 diagnostics-first-scan: root.diagnostics-first-scan;
                 diagnostics-first-snapshot: root.diagnostics-first-snapshot;
@@ -1339,8 +1354,8 @@ export component SettingsModal inherits FocusScope {
                 update-check-requested => {
                   root.update-check-requested();
                 }
-                update-release-requested => {
-                  root.update-release-requested();
+                update-action-requested => {
+                  root.update-action-requested();
                 }
               }
             }

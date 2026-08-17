@@ -100,7 +100,10 @@ export global I18n {
     if value == "Unlimited" { return @tr("Unlimited"); }
     if value == "Unsupported" { return @tr("Unsupported"); }
     if value == "Update check could not be started" { return @tr("Update check could not be started"); }
+    if value == "Update download could not be started" { return @tr("Update download could not be started"); }
+    if value == "Update install could not be started" { return @tr("Update install could not be started"); }
     if value == "Update setting saved" { return @tr("Update setting saved"); }
+    if value == "Opened update in the system installer" { return @tr("Opened update in the system installer"); }
     if value == "Wallpaper applied" { return @tr("Wallpaper applied"); }
     if value == "Wallpaper source saved" { return @tr("Wallpaper source saved"); }
     if value == "Dark" { return @tr("Dark"); }
@@ -117,6 +120,10 @@ export global I18n {
   public pure function sync-interval(minutes: int) -> string { return @tr("{} minutes", minutes); }
   public pure function sync-time(timestamp: string) -> string { return @tr("Sync {}", timestamp); }
   public pure function update-check-failed(error: string) -> string { return @tr("Update check failed: {}", error); }
+  public pure function update-download-failed(error: string) -> string { return @tr("Update download failed: {}", error); }
+  public pure function update-install-failed(error: string) -> string { return @tr("Update install failed: {}", error); }
+  public pure function update-ready(version: string) -> string { return @tr("Ready to install v{}", version); }
+  public pure function update-installer-opened(version: string) -> string { return @tr("System installer opened for v{}", version); }
   public pure function failed(error: string) -> string { return @tr("Failed: {}", error); }
   public pure function cache-cleaned(count: string) -> string { return @tr("Cache cleaned: {} wallpapers removed", count); }
   public pure function history-limit-removed(count: string) -> string { return @tr("History limit saved: {} wallpapers removed", count); }
@@ -170,13 +177,24 @@ export component MainWindow inherits Window {
         ? @tr("No releases published")
         : root.update-status-kind == "available"
           ? I18n.version-available(root.update-status-version)
-          : root.update-status-kind == "up-to-date"
-            ? I18n.up-to-date(root.update-status-version)
-            : root.update-status-kind == "failed"
-              ? @tr("Check failed")
-              : @tr("Not checked");
-  in-out property <bool> update-check-pending: false;
-  in-out property <bool> update-release-available: false;
+          : root.update-status-kind == "downloading"
+            ? @tr("Downloading update")
+            : root.update-status-kind == "ready"
+              ? I18n.update-ready(root.update-status-version)
+              : root.update-status-kind == "installing"
+                ? @tr("Preparing installation")
+                : root.update-status-kind == "installer-opened"
+                  ? I18n.update-installer-opened(root.update-status-version)
+                  : root.update-status-kind == "up-to-date"
+                    ? I18n.up-to-date(root.update-status-version)
+                    : root.update-status-kind == "check-failed"
+                      ? @tr("Check failed")
+                      : root.update-status-kind == "download-failed"
+                        ? @tr("Download failed")
+                        : root.update-status-kind == "install-failed"
+                          ? @tr("Installation failed")
+                          : @tr("Not checked");
+  in-out property <string> update-action-kind: "check";
   in-out property <string> library-summary: "0 wallpapers";
   in-out property <string> favorite-summary: "0 favorites";
   in-out property <string> pending-remove-id: "";
@@ -338,7 +356,7 @@ export component MainWindow inherits Window {
   callback open-favorites-folder-requested();
   callback open-logs-folder-requested();
   callback update-check-requested();
-  callback update-release-requested();
+  callback update-action-requested();
   callback reveal-current-requested();
   callback favorite-toggled(string, bool);
   callback wallpaper-export-requested(string);
@@ -1334,8 +1352,8 @@ export component MainWindow inherits Window {
       history-limit-text: root.history-limit-text;
       theme-text: root.theme-text;
       update-status-text: root.update-status-text;
-      update-check-pending: root.update-check-pending;
-      update-release-available: root.update-release-available;
+      update-status-kind: root.update-status-kind;
+      update-action-kind: root.update-action-kind;
       diagnostics-startup: root.diagnostics-startup;
       diagnostics-first-scan: root.diagnostics-first-scan;
       diagnostics-first-snapshot: root.diagnostics-first-snapshot;
@@ -1430,9 +1448,13 @@ export component MainWindow inherits Window {
       update-check-requested => {
         root.update-check-requested();
       }
-      update-release-requested => {
-        if root.begin-external-action(@tr("Opening release page"), "update-release") {
-          root.update-release-requested();
+      update-action-requested => {
+        if root.update-action-kind == "view" {
+          if root.begin-external-action(@tr("Opening release page"), "update-release") {
+            root.update-action-requested();
+          }
+        } else {
+          root.update-action-requested();
         }
       }
     }
