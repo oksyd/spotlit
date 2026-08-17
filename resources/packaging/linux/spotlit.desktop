@@ -4,6 +4,7 @@ Name=Spotlit
 Comment=Manage Bing and Windows Spotlight wallpapers
 Exec=spotlit
 Icon=spotlit
+StartupWMClass=spotlit
 Terminal=false
 Categories=Utility;
 Keywords=Wallpaper;Bing;Spotlight;

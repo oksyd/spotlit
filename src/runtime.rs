@@ -17,6 +17,8 @@ const LOGGING_STARTUP_DELAY: Duration = Duration::from_millis(160);
 const ACTIVATION_LISTENER_STARTUP_DELAY: Duration = Duration::from_millis(180);
 const SCHEDULER_STARTUP_DELAY: Duration = Duration::from_millis(260);
 const BACKGROUND_STARTUP_THREAD_STACK_SIZE: usize = 256 * 1024;
+#[cfg(target_os = "linux")]
+const LINUX_DESKTOP_APP_ID: &str = "spotlit";
 
 struct RuntimeHandles {
     single_instance: platform::SingleInstanceGuard,
@@ -46,6 +48,8 @@ pub fn run(args: impl IntoIterator<Item = String>) -> anyhow::Result<()> {
     else {
         return Ok(());
     };
+
+    configure_window_identity()?;
 
     let paths = platform::app_paths().context("failed to resolve app paths")?;
 
@@ -89,6 +93,20 @@ pub fn run(args: impl IntoIterator<Item = String>) -> anyhow::Result<()> {
     let result = slint::run_event_loop().context("failed to run UI event loop");
     drop(runtime_handle);
     result
+}
+
+#[cfg(target_os = "linux")]
+fn configure_window_identity() -> anyhow::Result<()> {
+    slint::BackendSelector::new()
+        .select()
+        .context("failed to initialize Slint backend")?;
+    slint::set_xdg_app_id(LINUX_DESKTOP_APP_ID)
+        .context("failed to set Spotlit desktop application ID")
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_window_identity() -> anyhow::Result<()> {
+    Ok(())
 }
 
 fn start_non_visual_services(
@@ -167,4 +185,17 @@ fn spawn_background_startup_task(
         .spawn(task)
         .map(|_| ())
         .with_context(|| format!("failed to spawn {name}"))
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::LINUX_DESKTOP_APP_ID;
+
+    const DESKTOP_ENTRY: &str = include_str!("../resources/packaging/linux/spotlit.desktop");
+
+    #[test]
+    fn linux_window_identity_matches_desktop_entry() {
+        assert!(DESKTOP_ENTRY.contains(&format!("StartupWMClass={LINUX_DESKTOP_APP_ID}\n")));
+        assert!(DESKTOP_ENTRY.contains(&format!("Icon={LINUX_DESKTOP_APP_ID}\n")));
+    }
 }
