@@ -1,4 +1,4 @@
-use crate::core::{AppConfig, FavoriteUpdate, SyncReport, Wallpaper};
+use crate::core::{AppConfig, AppliedWallpaper, FavoriteUpdate, SyncReport, Wallpaper};
 
 use crate::{
     command::Command,
@@ -8,6 +8,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub current: Option<Wallpaper>,
+    pub last_applied: Option<AppliedWallpaper>,
     pub wallpapers: Vec<Wallpaper>,
     pub config: AppConfig,
     pub system_theme: SystemTheme,

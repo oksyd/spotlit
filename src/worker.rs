@@ -204,7 +204,7 @@ impl Worker {
             Command::RevealCurrentImage => self.handle_reveal_current(),
             Command::RevealWallpaper { id } => self.handle_reveal_wallpaper(WallpaperId::new(id)),
             Command::RemoveWallpaper { id } => self.handle_remove_wallpaper(WallpaperId::new(id)),
-            Command::Scan => self.handle_scan(),
+            Command::Scan | Command::RefreshSources => self.handle_scan(),
             Command::SyncCurrent => self.handle_sync_current(),
             Command::SyncWallpaper { id } => self.handle_sync_wallpaper(WallpaperId::new(id)),
             Command::WarmThumbnails => self.handle_warm_thumbnails(),
@@ -273,11 +273,24 @@ impl Worker {
     }
 
     fn handle_install_lock_screen_integration(&self) -> WorkerResult<WorkerEvent> {
+        let updating = self
+            .platform
+            .lock_screen_integration()
+            .map_err(WorkerError::operation)?
+            .update_available;
         let integration = self
             .platform
             .install_lock_screen_integration()
             .map_err(WorkerError::operation)?;
-        self.integration_updated("GNOME extension installed", integration, false)
+        self.integration_updated(
+            if updating {
+                "GNOME extension updated"
+            } else {
+                "GNOME extension installed"
+            },
+            integration,
+            false,
+        )
     }
 
     fn handle_set_lock_screen_integration_enabled(
@@ -640,6 +653,16 @@ impl Worker {
             if !config.auto_sync_lock_screen {
                 return Ok(AutoSyncOutcome::Idle);
             }
+            if !matches!(
+                self.platform
+                    .lock_screen_integration()
+                    .map_err(WorkerError::operation)?
+                    .state,
+                crate::platform::LockScreenIntegrationState::Unsupported
+                    | crate::platform::LockScreenIntegrationState::Enabled
+            ) {
+                return Ok(AutoSyncOutcome::Idle);
+            }
 
             let settings = SchedulerSettings {
                 auto_sync_lock_screen: config.auto_sync_lock_screen,
@@ -647,9 +670,8 @@ impl Worker {
             };
 
             match config.wallpaper_source {
-                WallpaperSource::CurrentDesktop => {
-                    self.prepare_current_desktop_auto_sync(core, &settings)
-                }
+                WallpaperSource::DailyBing => self.prepare_daily_auto_sync(core),
+                WallpaperSource::CurrentDesktop => self.prepare_current_desktop_auto_sync(core),
                 WallpaperSource::RandomLibrary | WallpaperSource::RandomFavorites => {
                     self.prepare_rotation_auto_sync(core, &settings, config.wallpaper_source)
                 }
@@ -664,6 +686,14 @@ impl Worker {
 
     fn prepare_immediate_auto_sync(&self, core: &mut SpotlitCore) -> WorkerResult<PreparedSync> {
         match core.config().wallpaper_source {
+            WallpaperSource::DailyBing => {
+                let creatives = self.desktop_spotlight_creatives();
+                self.import_desktop_spotlight_creatives(core, &creatives);
+                let wallpaper = core.daily_wallpaper().ok_or_else(|| {
+                    WorkerError::message("no daily Bing wallpaper is available yet")
+                })?;
+                prepare_wallpaper_sync(core, wallpaper)
+            }
             WallpaperSource::CurrentDesktop => self.prepare_current_desktop_sync(core),
             WallpaperSource::RandomLibrary | WallpaperSource::RandomFavorites => {
                 let source = core.config().wallpaper_source;
@@ -680,77 +710,68 @@ impl Worker {
     fn prepare_current_desktop_sync(&self, core: &mut SpotlitCore) -> WorkerResult<PreparedSync> {
         let desktop_spotlight_creatives = self.desktop_spotlight_creatives();
         self.import_desktop_spotlight_creatives(core, &desktop_spotlight_creatives);
-        let (preferred_source, imported_current) =
+        let (_, imported_current) =
             self.import_current_desktop_wallpaper(core, &desktop_spotlight_creatives)?;
-        let wallpaper = match imported_current {
-            Some(wallpaper) => wallpaper,
-            None => core
-                .wallpaper_for_sync(preferred_source.as_deref())
-                .map_err(WorkerError::operation)?,
-        };
+        let wallpaper = imported_current
+            .ok_or_else(|| WorkerError::message("current desktop wallpaper is unavailable"))?;
         prepare_wallpaper_sync(core, wallpaper)
     }
 
     fn prepare_current_desktop_auto_sync(
         &self,
         core: &mut SpotlitCore,
-        settings: &SchedulerSettings,
     ) -> WorkerResult<AutoSyncOutcome> {
-        let desktop_path = self
+        let Some(desktop_path) = self
             .platform
             .current_desktop_wallpaper()
-            .map_err(WorkerError::operation)?;
-        let desktop_spotlight_creatives = self.desktop_spotlight_creatives();
-        self.import_desktop_spotlight_creatives(core, &desktop_spotlight_creatives);
-
-        if let Some(current) = core.current_wallpaper() {
-            let desktop_matches = desktop_path
-                .as_deref()
-                .is_some_and(|path| same_path(path, &current.source_path));
-
-            if desktop_matches || desktop_path.is_none() {
-                let current = match desktop_path.as_deref() {
-                    Some(path) => self.attach_desktop_spotlight_metadata(
-                        core,
-                        current,
-                        path,
-                        &desktop_spotlight_creatives,
-                    )?,
-                    None => current,
-                };
-
-                return Ok(match settings.decide(current.last_synced_at) {
-                    SchedulerDecision::SyncNow => {
-                        AutoSyncOutcome::Sync(prepare_wallpaper_sync(core, current)?)
-                    }
-                    SchedulerDecision::Wait | SchedulerDecision::Disabled => AutoSyncOutcome::Idle,
-                });
-            }
-        }
-
-        let imported_current = match desktop_path {
-            Some(path) if path.exists() => {
-                self.import_desktop_wallpaper_path(core, &path, &desktop_spotlight_creatives)?
-            }
-            Some(path) => {
-                tracing::debug!(
-                    path = %path.display(),
-                    "current desktop wallpaper path does not exist"
-                );
-                None
-            }
-            None => None,
-        };
-        let Some(current) = imported_current.or_else(|| core.current_wallpaper()) else {
+            .map_err(WorkerError::operation)?
+        else {
             return Ok(AutoSyncOutcome::Idle);
         };
-
-        match settings.decide(current.last_synced_at) {
-            SchedulerDecision::SyncNow => Ok(AutoSyncOutcome::Sync(prepare_wallpaper_sync(
-                core, current,
-            )?)),
-            SchedulerDecision::Wait | SchedulerDecision::Disabled => Ok(AutoSyncOutcome::Idle),
+        if !desktop_path.is_file() {
+            return Ok(AutoSyncOutcome::Idle);
         }
+        if let Some(applied) = core.last_applied()
+            && core
+                .wallpaper(&applied.id)
+                .is_some_and(|wallpaper| same_path(&desktop_path, &wallpaper.source_path))
+            && desktop_path
+                .metadata()
+                .ok()
+                .and_then(|metadata| metadata.modified().ok())
+                .is_some_and(|modified| {
+                    chrono::DateTime::<chrono::Utc>::from(modified) <= applied.applied_at
+                })
+        {
+            return Ok(AutoSyncOutcome::Idle);
+        }
+        let Some(wallpaper) = self.import_desktop_wallpaper_path(core, &desktop_path, &[])? else {
+            return Ok(AutoSyncOutcome::Idle);
+        };
+        self.prepare_changed_wallpaper_sync(core, wallpaper)
+    }
+
+    fn prepare_daily_auto_sync(&self, core: &mut SpotlitCore) -> WorkerResult<AutoSyncOutcome> {
+        let Some(wallpaper) = core.daily_wallpaper() else {
+            return Ok(AutoSyncOutcome::Idle);
+        };
+        self.prepare_changed_wallpaper_sync(core, wallpaper)
+    }
+
+    fn prepare_changed_wallpaper_sync(
+        &self,
+        core: &mut SpotlitCore,
+        wallpaper: Wallpaper,
+    ) -> WorkerResult<AutoSyncOutcome> {
+        if core
+            .last_applied()
+            .is_some_and(|applied| applied.id == wallpaper.id)
+        {
+            return Ok(AutoSyncOutcome::Idle);
+        }
+        Ok(AutoSyncOutcome::Sync(prepare_wallpaper_sync(
+            core, wallpaper,
+        )?))
     }
 
     fn prepare_rotation_auto_sync(
@@ -852,6 +873,7 @@ impl Worker {
                     }
                 };
 
+            let id = wallpaper.id.clone();
             if let Err(error) = self.backfill_wallpaper_spotlight_metadata(
                 core,
                 wallpaper,
@@ -863,6 +885,11 @@ impl Worker {
                     "failed to backfill desktop Spotlight creative metadata"
                 );
                 continue;
+            }
+            if creative.is_current
+                && let Err(error) = core.set_daily_wallpaper(id)
+            {
+                tracing::warn!(%error, "failed to save daily wallpaper selection");
             }
             imported += 1;
         }
@@ -980,6 +1007,7 @@ impl Worker {
         let settings = self.settings_snapshot(core);
 
         Snapshot {
+            last_applied: core.last_applied().cloned(),
             current: core.current_wallpaper(),
             wallpapers: core.list_wallpapers(),
             config: settings.config,
@@ -1193,6 +1221,7 @@ fn parse_lock_screen_display_mode(value: &str) -> WorkerResult<LockScreenDisplay
 
 fn parse_wallpaper_source(value: &str) -> WorkerResult<WallpaperSource> {
     match value {
+        "daily_bing" => Ok(WallpaperSource::DailyBing),
         "current_desktop" | "current" => Ok(WallpaperSource::CurrentDesktop),
         "random_library" | "library" => Ok(WallpaperSource::RandomLibrary),
         "random_favorites" | "favorites" => Ok(WallpaperSource::RandomFavorites),

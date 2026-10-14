@@ -1,54 +1,26 @@
 # Spotlit
 
-Spotlit is a cross-platform desktop wallpaper companion built with Rust and Slint. It works with Windows Spotlight on Windows 11 and Bing wallpapers on GNOME-based Linux desktops.
+[![CI](https://img.shields.io/github/actions/workflow/status/oksyd/spotlit/ci.yml?branch=main&event=push&label=CI)](https://github.com/oksyd/spotlit/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/oksyd/spotlit?display_name=tag&sort=semver&label=release)](https://github.com/oksyd/spotlit/releases/latest)
+[![Rust](https://img.shields.io/badge/Rust-1.99%2B-000000?logo=rust&logoColor=white)](Cargo.toml)
+[![Platforms](https://img.shields.io/badge/platform-Windows%2011%20%7C%20Ubuntu%2026.04-0078D4)](#install)
+
+Spotlit collects Windows Spotlight wallpapers on Windows 11 and Bing wallpapers on GNOME-based Linux desktops.
 
 ## Features
 
-- Maintains a local wallpaper library with favorites, history limits, and cached previews.
-- Applies wallpapers manually or on a configurable schedule.
-- Uses Windows Spotlight metadata when it is available.
-- Retrieves recent Bing wallpapers on Linux without changing desktop settings at startup.
-- Provides an optional GNOME Shell extension for an independent lock screen wallpaper, blur styling, and lock screen display policy.
-- Supports English, Simplified Chinese, and German interfaces while preserving wallpaper-provided titles and descriptions.
-- Checks GitHub Releases for updates and supports verified, user-confirmed installation in packaged builds.
+- Wallpaper previews, favorites, import, and export.
+- Manual lock screen application, desktop following, and library or favorites rotation.
+- Daily Bing wallpapers on Linux, with background refresh and offline caching.
+- GNOME extension for independent lock screen wallpapers, blur, and display settings.
+- System tray, background operation, and verified updates in packaged builds.
+- English, Simplified Chinese, and German interfaces, with light and dark themes.
 
-## Development
+## Install
 
-The repository is a single Cargo package. The pinned Rust toolchain is declared in `rust-toolchain.toml`.
+Download the latest version from [GitHub Releases](https://github.com/oksyd/spotlit/releases/latest).
 
-```sh
-cargo run
-cargo test --all-targets
-cargo clippy --all-targets -- -D warnings
-```
+- **Windows 11:** Extract the Windows ZIP and run `spotlit.exe`.
+- **Ubuntu 26.04 (GNOME 50):** Install the `.deb` package. For lock screen support, install and enable the GNOME extension under **Settings > Wallpaper**.
 
-Starting Spotlit does not install the GNOME extension, write extension preferences, or install application updates. Wallpaper application, startup registration, extension installation, extension preference changes, and update installation require explicit user actions. Source builds can detect releases but cannot replace themselves.
-
-## GNOME Extension
-
-The optional GNOME Shell extension is maintained with the application source under [`extensions/gnome-shell`](extensions/gnome-shell/README.md). Its packaging command only validates and creates a local bundle:
-
-```sh
-bash extensions/gnome-shell/package.sh
-```
-
-It does not install, enable, or configure the extension.
-
-## Release
-
-Release tags have no `v` prefix and must exactly match the package version in `Cargo.toml`. For example, package version `0.1.0` must use tag `0.1.0`:
-
-```sh
-git tag -a 0.1.0 -m "Release 0.1.0"
-git push origin 0.1.0
-```
-
-Pushing the tag builds an Ubuntu/Debian `.deb` package, a portable Linux archive, and a Windows archive. Each distribution contains the generated third-party license report. The workflow generates `SHA256SUMS`, records GitHub artifact attestations, and creates a draft GitHub Release. It does not publish the Release.
-
-A maintainer must review the draft on the repository's **Releases** page and click **Publish release**. Crates.io publishing is intentionally outside GitHub Actions.
-
-After publication, verify a downloaded asset with `sha256sum --check SHA256SUMS` and `gh attestation verify <asset> --repo oksyd/spotlit`.
-
-## License
-
-Spotlit is licensed under the [Apache License 2.0](LICENSE).
+Automatic wallpaper application is disabled by default.

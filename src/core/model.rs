@@ -197,6 +197,17 @@ pub struct DesktopSpotlightCreative {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LibraryState {
     pub wallpapers: BTreeMap<WallpaperId, Wallpaper>,
+    #[serde(default)]
+    pub daily_wallpaper_id: Option<WallpaperId>,
+    #[serde(default)]
+    pub last_applied: Option<AppliedWallpaper>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash, PartialEq)]
+pub struct AppliedWallpaper {
+    pub id: WallpaperId,
+    pub title: String,
+    pub applied_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]

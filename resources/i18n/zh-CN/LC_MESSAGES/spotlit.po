@@ -7,6 +7,51 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
+msgid "Daily Bing"
+msgstr "每日必应"
+
+msgid "Follow Desktop"
+msgstr "跟随桌面"
+
+msgid "Library Rotation"
+msgstr "图库轮换"
+
+msgid "Favorites Rotation"
+msgstr "收藏轮换"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Rotation Interval"
+msgstr "轮换间隔"
+
+msgid "Update GNOME Lock Screen Extension"
+msgstr "更新 GNOME 锁屏扩展"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "GNOME extension updated"
+msgstr "GNOME 扩展已更新"
+
+msgid "No wallpaper applied by Spotlit"
+msgstr "尚未通过 Spotlit 应用锁屏壁纸"
+
+msgid "Last applied to lock screen: {}"
+msgstr "最近应用到锁屏：{}"
+
+msgid "Last applied: {}"
+msgstr "最近应用：{}"
+
+msgid "Show Latest Wallpaper"
+msgstr "显示最新壁纸"
+
+msgid "Latest"
+msgstr "最新"
+
+msgid "Apply to Lock Screen"
+msgstr "应用到锁屏"
+
 msgid "Added to favorites"
 msgstr "已添加到收藏"
 
@@ -750,9 +795,6 @@ msgstr "应用"
 
 msgid "Storage"
 msgstr "存储"
-
-msgid "ABOUT"
-msgstr "关于"
 
 msgid "Downloading update"
 msgstr "正在下载更新"

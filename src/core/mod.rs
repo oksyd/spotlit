@@ -15,6 +15,8 @@ mod spotlight;
 mod sync;
 mod thumbnail;
 
+#[cfg(target_os = "linux")]
+pub(crate) use config::write_json_file;
 pub use config::{
     AppConfig, ConfigStore, LanguageMode, ThemeMode, WallpaperSource, normalized_history_limit,
 };
@@ -23,8 +25,8 @@ pub use error::{Result, SpotlitError};
 pub use favorite::FavoriteUpdate;
 pub use library::WallpaperLibrary;
 pub use model::{
-    AppPaths, DesktopSpotlightCreative, LibraryMaintenanceReport, SpotlightMetadata, Wallpaper,
-    WallpaperId,
+    AppPaths, AppliedWallpaper, DesktopSpotlightCreative, LibraryMaintenanceReport,
+    SpotlightMetadata, Wallpaper, WallpaperId,
 };
 pub use scheduler::{SchedulerDecision, SchedulerSettings};
 pub use spotlight::{ScanReport, SpotlightScanner};

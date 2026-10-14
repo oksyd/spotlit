@@ -129,7 +129,7 @@ pub(crate) fn check_for_update() -> Result<UpdateCheck> {
         .try_header("X-GitHub-Api-Version", GITHUB_API_VERSION)
         .context("build GitHub release request")?
         .max_response_body_bytes(RELEASE_METADATA_MAX_BYTES)
-        .send_response()
+        .send()
         .context("fetch latest GitHub release")?;
 
     if !release_response_has_body(response.status().as_u16())? {
@@ -487,7 +487,7 @@ fn download_asset_bytes(asset: &ReleaseAsset, max_bytes: usize) -> Result<Vec<u8
         .context("build GitHub asset request")?
         .try_header("X-GitHub-Api-Version", GITHUB_API_VERSION)
         .context("build GitHub asset request")?
-        .send_response_stream()
+        .send_stream()
         .with_context(|| format!("download release asset {}", asset.name))?;
     ensure!(
         response.status().as_u16() == 200,
@@ -540,7 +540,7 @@ fn download_package(asset: &ReleaseAsset, destination: &Path, expected_sha256: &
             .context("build GitHub package request")?
             .try_header("X-GitHub-Api-Version", GITHUB_API_VERSION)
             .context("build GitHub package request")?
-            .send_response_stream()
+            .send_stream()
             .with_context(|| format!("download release package {}", asset.name))?;
         ensure!(
             response.status().as_u16() == 200,
@@ -703,7 +703,11 @@ fn build_github_client(download: bool) -> std::result::Result<Client, String> {
             "spotlit-update-check"
         })
         .request_timeout(Duration::from_secs(if download { 30 } else { 10 }))
-        .total_timeout(Duration::from_secs(if download { 5 * 60 } else { 20 }))
+        .total_timeout(Some(Duration::from_secs(if download {
+            5 * 60
+        } else {
+            20
+        })))
         .connect_timeout(Duration::from_secs(8))
         .redirect_policy(RedirectPolicy::limited(5))
         .max_response_body_bytes(RELEASE_METADATA_MAX_BYTES);

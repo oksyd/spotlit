@@ -220,7 +220,7 @@ fn bing_client() -> Result<&'static Client> {
             let builder = Client::builder(BING_HOST)
                 .client_name("spotlit")
                 .request_timeout(Duration::from_secs(20))
-                .total_timeout(Duration::from_secs(45))
+                .total_timeout(Some(Duration::from_secs(45)))
                 .connect_timeout(Duration::from_secs(10))
                 .max_response_body_bytes(BING_METADATA_MAX_BYTES);
 

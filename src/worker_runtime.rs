@@ -181,7 +181,9 @@ fn update_pending_thumbnail_warmup(
     now: Instant,
 ) -> ThumbnailWarmupDecision {
     if can_warm_preview_cache
-        && (command_name == Command::ImportImage.name() || command_name == Command::Scan.name())
+        && (command_name == Command::ImportImage.name()
+            || command_name == Command::Scan.name()
+            || command_name == Command::RefreshSources.name())
     {
         *pending_thumbnail_warmup = Some(now + THUMBNAIL_WARM_DELAY);
         return ThumbnailWarmupDecision::Scheduled;

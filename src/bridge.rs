@@ -4,7 +4,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::core::{AppConfig, LanguageMode, ThemeMode, Wallpaper, WallpaperSource};
+use crate::core::{
+    AppConfig, AppliedWallpaper, LanguageMode, ThemeMode, Wallpaper, WallpaperSource,
+};
 use slint::{Image, Model, ModelRc, SharedString, VecModel};
 
 use crate::{
@@ -19,6 +21,7 @@ use crate::{
 #[derive(Clone)]
 pub(crate) struct PreparedSnapshot {
     pub(crate) current: Option<PreparedWallpaperItem>,
+    pub(crate) last_applied: Option<AppliedWallpaper>,
     pub(crate) wallpapers: Arc<[PreparedWallpaperItem]>,
     pub(crate) library_count: usize,
     pub(crate) favorite_count: usize,
@@ -44,6 +47,7 @@ impl PreparedSnapshot {
     pub(crate) fn settings_only(settings: &SettingsSnapshot) -> Self {
         Self {
             current: None,
+            last_applied: None,
             wallpapers: Vec::new().into(),
             library_count: 0,
             favorite_count: 0,
@@ -51,7 +55,7 @@ impl PreparedSnapshot {
             system_theme: settings.system_theme,
             lock_screen_integration: settings.lock_screen_integration,
             ui_signature: prepared_snapshot_signature(
-                None,
+                (None, None),
                 &[],
                 0,
                 0,
@@ -64,7 +68,7 @@ impl PreparedSnapshot {
 
     pub(crate) fn with_settings(&self, settings: &SettingsSnapshot) -> Self {
         let ui_signature = prepared_snapshot_signature(
-            self.current.as_ref(),
+            (self.current.as_ref(), self.last_applied.as_ref()),
             &self.wallpapers,
             self.library_count,
             self.favorite_count,
@@ -75,6 +79,7 @@ impl PreparedSnapshot {
 
         Self {
             current: self.current.clone(),
+            last_applied: self.last_applied.clone(),
             wallpapers: Arc::clone(&self.wallpapers),
             library_count: self.library_count,
             favorite_count: self.favorite_count,
@@ -102,7 +107,7 @@ pub(crate) fn prepare_snapshot(snapshot: Snapshot) -> PreparedSnapshot {
         .into();
 
     let ui_signature = prepared_snapshot_signature(
-        current.as_ref(),
+        (current.as_ref(), snapshot.last_applied.as_ref()),
         &wallpapers,
         library_count,
         favorite_count,
@@ -113,6 +118,7 @@ pub(crate) fn prepare_snapshot(snapshot: Snapshot) -> PreparedSnapshot {
 
     PreparedSnapshot {
         current,
+        last_applied: snapshot.last_applied,
         wallpapers,
         library_count,
         favorite_count,
@@ -146,6 +152,26 @@ pub(crate) fn apply_prepared_snapshot(app: &MainWindow, snapshot: &PreparedSnaps
         current.as_ref(),
     );
     set_current(app, current.as_ref());
+    let (applied_id, applied_title, applied_time) = match &snapshot.last_applied {
+        Some(applied) => (
+            applied.id.as_str().into(),
+            applied.title.clone().into(),
+            applied
+                .applied_at
+                .with_timezone(&chrono::Local)
+                .format("%Y-%m-%d %H:%M")
+                .to_string()
+                .into(),
+        ),
+        None => (
+            SharedString::default(),
+            SharedString::default(),
+            SharedString::default(),
+        ),
+    };
+    app.set_last_applied_id(applied_id);
+    app.set_last_applied_title(applied_title);
+    app.set_last_applied_time(applied_time);
 
     let mut items: Vec<_> = snapshot
         .wallpapers
@@ -360,6 +386,8 @@ fn apply_config(
         integration.state != LockScreenIntegrationState::Unsupported,
         |value| app.set_gnome_integration_visible(value),
     );
+    app.set_daily_bing_available(cfg!(target_os = "linux"));
+    app.set_gnome_integration_update_available(integration.update_available);
     set_shared_string_if_changed(
         app.get_gnome_integration_state_text(),
         lock_screen_integration_label(integration.state).into(),
@@ -1006,6 +1034,7 @@ fn history_limit_label(config: &AppConfig) -> String {
 
 fn wallpaper_source_label(source: WallpaperSource) -> &'static str {
     match source {
+        WallpaperSource::DailyBing => "Daily Bing",
         WallpaperSource::CurrentDesktop => "Current Desktop",
         WallpaperSource::RandomLibrary => "Library",
         WallpaperSource::RandomFavorites => "Favorites",
@@ -1021,7 +1050,7 @@ fn theme_is_dark(theme: ThemeMode, system_theme: SystemTheme) -> bool {
 }
 
 fn prepared_snapshot_signature(
-    current: Option<&PreparedWallpaperItem>,
+    current: (Option<&PreparedWallpaperItem>, Option<&AppliedWallpaper>),
     wallpapers: &[PreparedWallpaperItem],
     library_count: usize,
     favorite_count: usize,
@@ -1064,6 +1093,7 @@ fn hash_language_mode(language: LanguageMode, hasher: &mut DefaultHasher) {
 
 fn hash_wallpaper_source(source: WallpaperSource, hasher: &mut DefaultHasher) {
     match source {
+        WallpaperSource::DailyBing => 3,
         WallpaperSource::CurrentDesktop => 0_u8,
         WallpaperSource::RandomLibrary => 1,
         WallpaperSource::RandomFavorites => 2,

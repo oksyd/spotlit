@@ -7,6 +7,51 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+msgid "Daily Bing"
+msgstr "Tägliches Bing"
+
+msgid "Follow Desktop"
+msgstr "Desktop folgen"
+
+msgid "Library Rotation"
+msgstr "Bibliothek durchwechseln"
+
+msgid "Favorites Rotation"
+msgstr "Favoriten durchwechseln"
+
+msgid "Mode"
+msgstr "Modus"
+
+msgid "Rotation Interval"
+msgstr "Wechselintervall"
+
+msgid "Update GNOME Lock Screen Extension"
+msgstr "GNOME-Sperrbildschirm-Erweiterung aktualisieren"
+
+msgid "Update"
+msgstr "Aktualisieren"
+
+msgid "GNOME extension updated"
+msgstr "GNOME-Erweiterung aktualisiert"
+
+msgid "No wallpaper applied by Spotlit"
+msgstr "Noch kein Sperrbild mit Spotlit angewendet"
+
+msgid "Last applied to lock screen: {}"
+msgstr "Zuletzt als Sperrbild angewendet: {}"
+
+msgid "Last applied: {}"
+msgstr "Zuletzt angewendet: {}"
+
+msgid "Show Latest Wallpaper"
+msgstr "Neuestes Hintergrundbild anzeigen"
+
+msgid "Latest"
+msgstr "Neueste"
+
+msgid "Apply to Lock Screen"
+msgstr "Als Sperrbild anwenden"
+
 msgid "Added to favorites"
 msgstr "Zu Favoriten hinzugefügt"
 
@@ -750,9 +795,6 @@ msgstr "App"
 
 msgid "Storage"
 msgstr "Speicher"
-
-msgid "ABOUT"
-msgstr "ÜBER"
 
 msgid "Downloading update"
 msgstr "Update wird heruntergeladen"

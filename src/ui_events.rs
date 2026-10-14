@@ -774,6 +774,7 @@ fn is_settings_save_result_message(message: &str) -> bool {
             | "Theme setting saved"
             | "Auto sync enabled and synced"
             | "GNOME extension installed"
+            | "GNOME extension updated"
             | "GNOME extension enabled"
             | "GNOME extension disabled"
             | "Lock screen blur saved"
@@ -820,7 +821,10 @@ fn apply_command_failure(app: &MainWindow, failure: CommandFailure) {
         | Command::SetStartAtLogin(_)
         | Command::SetSyncInterval(_)
         | Command::SetTheme(_) => app.set_settings_save_pending(false),
-        Command::AutoSyncTick | Command::LoadSnapshot | Command::WarmThumbnails => {}
+        Command::AutoSyncTick
+        | Command::RefreshSources
+        | Command::LoadSnapshot
+        | Command::WarmThumbnails => {}
     }
 
     show_command_failure_feedback(app, &failure.command, &failure.message);
@@ -1601,6 +1605,7 @@ mod tests {
             "Language setting saved",
             "Theme setting saved",
             "Auto sync enabled and synced",
+            "GNOME extension updated",
             "History limit saved",
             "History limit saved: 1 wallpapers removed",
         ] {
@@ -1712,6 +1717,7 @@ mod tests {
     #[test]
     fn worker_snapshot_is_prepared_before_it_reaches_the_ui_loop() {
         let event = prepare_worker_event(WorkerEvent::Snapshot(Snapshot {
+            last_applied: None,
             current: None,
             wallpapers: Vec::new(),
             config: AppConfig::default(),

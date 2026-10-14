@@ -7,10 +7,10 @@ use std::{
 use chrono::{DateTime, Utc};
 
 use crate::core::{
-    AppConfig, AppPaths, ConfigStore, FavoriteUpdate, LibraryMaintenanceReport, Result, ScanReport,
-    SpotlightMetadata, SpotlightScanner, SpotlitError, SyncReport, Wallpaper, WallpaperId,
-    WallpaperLibrary, WallpaperSource, ensure_thumbnail, fs_utils::remove_file_if_exists,
-    thumbnail::thumbnail_path_for_image,
+    AppConfig, AppPaths, AppliedWallpaper, ConfigStore, FavoriteUpdate, LibraryMaintenanceReport,
+    Result, ScanReport, SpotlightMetadata, SpotlightScanner, SpotlitError, SyncReport, Wallpaper,
+    WallpaperId, WallpaperLibrary, WallpaperSource, ensure_thumbnail,
+    fs_utils::remove_file_if_exists, thumbnail::thumbnail_path_for_image,
 };
 
 const LOCK_SCREEN_STAGING_RETAINED_FILES: usize = 4;
@@ -146,6 +146,7 @@ impl SpotlitCore {
 
     pub fn wallpaper_rotation_candidate(&self, source: WallpaperSource) -> Option<Wallpaper> {
         match source {
+            WallpaperSource::DailyBing => self.daily_wallpaper(),
             WallpaperSource::CurrentDesktop => self.current_wallpaper(),
             WallpaperSource::RandomLibrary => self.library.rotation_candidate(false),
             WallpaperSource::RandomFavorites => self.library.rotation_candidate(true),
@@ -157,6 +158,9 @@ impl SpotlitCore {
         source: WallpaperSource,
     ) -> Option<DateTime<Utc>> {
         match source {
+            WallpaperSource::DailyBing => self
+                .daily_wallpaper()
+                .and_then(|wallpaper| wallpaper.last_synced_at),
             WallpaperSource::CurrentDesktop => self
                 .current_wallpaper()
                 .and_then(|wallpaper| wallpaper.last_synced_at),
@@ -166,7 +170,21 @@ impl SpotlitCore {
     }
 
     pub fn current_wallpaper(&self) -> Option<Wallpaper> {
-        self.library.most_recent()
+        self.daily_wallpaper()
+            .or_else(|| self.library.most_recent())
+    }
+
+    pub fn daily_wallpaper(&self) -> Option<Wallpaper> {
+        self.library.daily_wallpaper()
+    }
+
+    pub fn set_daily_wallpaper(&mut self, id: WallpaperId) -> Result<()> {
+        self.library.set_daily_wallpaper(id);
+        self.library.save()
+    }
+
+    pub fn last_applied(&self) -> Option<&AppliedWallpaper> {
+        self.library.last_applied()
     }
 
     pub fn wallpaper(&self, id: &WallpaperId) -> Option<Wallpaper> {

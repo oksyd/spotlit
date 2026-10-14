@@ -11,7 +11,10 @@ use crate::core::{
     Result, SpotlitError,
     config::{backup_invalid_json, write_json_file},
     fs_utils::remove_file_if_exists,
-    model::{LibraryMaintenanceReport, LibraryState, SpotlightMetadata, Wallpaper, WallpaperId},
+    model::{
+        AppliedWallpaper, LibraryMaintenanceReport, LibraryState, SpotlightMetadata, Wallpaper,
+        WallpaperId,
+    },
     retention::history_removal_candidates,
     spotlight::ScannedWallpaper,
 };
@@ -51,6 +54,21 @@ impl WallpaperLibrary {
         };
 
         let mut library = Self { path, state };
+        if library.state.last_applied.is_none() {
+            library.state.last_applied = library
+                .state
+                .wallpapers
+                .values()
+                .filter_map(|wallpaper| {
+                    wallpaper.last_synced_at.map(|applied_at| AppliedWallpaper {
+                        id: wallpaper.id.clone(),
+                        title: wallpaper.display_title().to_string(),
+                        applied_at,
+                    })
+                })
+                .max_by_key(|applied| applied.applied_at);
+            needs_save |= library.state.last_applied.is_some();
+        }
         needs_save |= library.normalize_loaded_wallpapers() > 0;
         let maintenance = library.prune_missing_files();
         needs_save |= maintenance.has_changes();
@@ -324,6 +342,21 @@ impl WallpaperLibrary {
         self.list().into_iter().next()
     }
 
+    pub fn daily_wallpaper(&self) -> Option<Wallpaper> {
+        self.state
+            .daily_wallpaper_id
+            .as_ref()
+            .and_then(|id| self.get(id))
+    }
+
+    pub fn set_daily_wallpaper(&mut self, id: WallpaperId) {
+        self.state.daily_wallpaper_id = Some(id);
+    }
+
+    pub fn last_applied(&self) -> Option<&AppliedWallpaper> {
+        self.state.last_applied.as_ref()
+    }
+
     pub fn get(&self, id: &WallpaperId) -> Option<Wallpaper> {
         self.state.wallpapers.get(id).cloned()
     }
@@ -366,6 +399,11 @@ impl WallpaperLibrary {
 
         let synced_at = Utc::now();
         wallpaper.last_synced_at = Some(synced_at);
+        self.state.last_applied = Some(AppliedWallpaper {
+            id: id.clone(),
+            title: wallpaper.display_title().to_string(),
+            applied_at: synced_at,
+        });
 
         Ok(crate::core::SyncReport {
             id: id.clone(),

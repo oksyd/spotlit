@@ -87,6 +87,7 @@ fn loading_snapshot_queries_gnome_integration_without_changing_it()
             state: LockScreenIntegrationState::NotInstalled,
             blur_mode: LockScreenBlurMode::System,
             display_mode: LockScreenDisplayMode::System,
+            update_available: false,
         })?;
 
     let event = fixture.worker.handle(Command::LoadSnapshot);
@@ -113,6 +114,7 @@ fn gnome_integration_changes_only_after_explicit_worker_command()
             state: LockScreenIntegrationState::NotInstalled,
             blur_mode: LockScreenBlurMode::System,
             display_mode: LockScreenDisplayMode::System,
+            update_available: false,
         })?;
 
     let event = fixture.worker.handle(Command::InstallLockScreenIntegration);
@@ -146,6 +148,7 @@ fn disabling_gnome_integration_also_disables_auto_sync()
             state: LockScreenIntegrationState::Enabled,
             blur_mode: LockScreenBlurMode::Soft,
             display_mode: LockScreenDisplayMode::PluggedIn,
+            update_available: false,
         })?;
 
     let event = fixture
@@ -175,6 +178,7 @@ fn lock_screen_display_mode_setting_updates_integration()
             state: LockScreenIntegrationState::Enabled,
             blur_mode: LockScreenBlurMode::Clear,
             display_mode: LockScreenDisplayMode::System,
+            update_available: false,
         })?;
 
     let event = fixture
@@ -378,6 +382,15 @@ fn sync_failure_does_not_record_synced_at() -> std::result::Result<(), Box<dyn s
             .is_none()
     );
 
+    assert!(
+        fixture
+            .core
+            .lock()
+            .expect("core lock")
+            .last_applied()
+            .is_none()
+    );
+
     Ok(())
 }
 
@@ -509,6 +522,286 @@ fn auto_sync_library_rotation_respects_global_interval()
     assert_eq!(lock_screen.synced_paths()?.len(), 1);
 
     Ok(())
+}
+
+#[test]
+fn background_refresh_downloads_daily_wallpaper_without_applying()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let lock_screen = Arc::new(RecordingLockScreen::default());
+    let fixture = test_worker_with_lock_screen("background-daily-refresh", lock_screen.clone())?;
+    let daily_path = fixture._root.join("daily.png");
+    let older_path = fixture._root.join("older.png");
+    write_test_wallpaper_variant(&daily_path, 31)?;
+    write_test_wallpaper_variant(&older_path, 32)?;
+    fixture.platform.set_desktop_spotlight_creatives(vec![
+        test_daily_creative(daily_path.clone(), true),
+        test_daily_creative(older_path, false),
+    ])?;
+
+    let WorkerEvent::Snapshot(snapshot) = fixture.worker.handle(Command::RefreshSources) else {
+        panic!("expected refreshed snapshot");
+    };
+    assert!(!snapshot.config.auto_sync_lock_screen);
+    assert!(snapshot.last_applied.is_none());
+    assert!(lock_screen.synced_paths()?.is_empty());
+    let core = fixture.core.lock().expect("core lock");
+    let daily = core.daily_wallpaper().expect("daily image is selected");
+    assert_eq!(daily.source_path, daily_path);
+    let paths = core.paths().clone();
+    drop(core);
+    let reopened = SpotlitCore::open(paths, Vec::new())?;
+    assert_eq!(
+        reopened
+            .daily_wallpaper()
+            .expect("daily selection persists")
+            .id,
+        daily.id
+    );
+    Ok(())
+}
+
+#[test]
+fn daily_policy_applies_new_images_once_and_ignores_desktop_and_archive_order()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let lock_screen = Arc::new(RecordingLockScreen::default());
+    let fixture = test_worker_with_lock_screen("daily-policy", lock_screen.clone())?;
+    let first = fixture._root.join("daily-first.png");
+    let older = fixture._root.join("daily-older.png");
+    write_test_wallpaper_variant(&first, 33)?;
+    write_test_wallpaper_variant(&older, 34)?;
+    fixture.platform.set_desktop_spotlight_creatives(vec![
+        test_daily_creative(first.clone(), true),
+        test_daily_creative(older, false),
+    ])?;
+    let desktop = fixture
+        .core
+        .lock()
+        .expect("core lock")
+        .wallpaper(&fixture.wallpaper_id)
+        .expect("desktop fixture")
+        .source_path;
+    fixture
+        .platform
+        .set_current_desktop_wallpaper(Some(desktop), None)?;
+    fixture
+        .worker
+        .handle(Command::SetWallpaperSource("daily_bing".into()));
+    let WorkerEvent::SettingsUpdated(_, snapshot) =
+        fixture.worker.handle(Command::SetAutoSync(true))
+    else {
+        panic!("expected daily image to apply immediately");
+    };
+    let applied = snapshot.last_applied.expect("successful apply is recorded");
+    assert_ne!(applied.id, fixture.wallpaper_id);
+    assert_eq!(
+        fixture
+            .core
+            .lock()
+            .expect("core lock")
+            .wallpaper(&applied.id)
+            .expect("applied image")
+            .source_path,
+        first
+    );
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    assert_eq!(lock_screen.synced_paths()?.len(), 1);
+
+    let next = fixture._root.join("daily-next.png");
+    write_test_wallpaper_variant(&next, 35)?;
+    fixture.platform.set_desktop_spotlight_creatives(vec![
+        test_daily_creative(next.clone(), true),
+        test_daily_creative(first, false),
+    ])?;
+    assert!(matches!(
+        fixture.worker.handle(Command::RefreshSources),
+        WorkerEvent::Snapshot(_)
+    ));
+    assert_eq!(lock_screen.synced_paths()?.len(), 1);
+    let WorkerEvent::Synced(_, snapshot) = fixture.worker.handle(Command::AutoSyncTick) else {
+        panic!("new daily image should apply without waiting for the rotation interval");
+    };
+    let next_applied = snapshot.last_applied.expect("new apply is recorded");
+    assert_ne!(next_applied.id, applied.id);
+    assert_eq!(
+        fixture
+            .core
+            .lock()
+            .expect("core lock")
+            .wallpaper(&next_applied.id)
+            .expect("next image")
+            .source_path,
+        next
+    );
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    assert_eq!(lock_screen.synced_paths()?.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn follow_desktop_applies_changes_once_and_does_not_fall_back_when_missing()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let lock_screen = Arc::new(RecordingLockScreen::default());
+    let fixture = test_worker_with_lock_screen("follow-desktop-policy", lock_screen.clone())?;
+    let first = fixture
+        .core
+        .lock()
+        .expect("core lock")
+        .wallpaper(&fixture.wallpaper_id)
+        .expect("desktop fixture")
+        .source_path;
+    fixture
+        .platform
+        .set_current_desktop_wallpaper(Some(first), None)?;
+    assert!(matches!(
+        fixture.worker.handle(Command::SetAutoSync(true)),
+        WorkerEvent::SettingsUpdated(_, _)
+    ));
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    let next = fixture._root.join("next-desktop.png");
+    write_test_wallpaper_variant(&next, 36)?;
+    fixture
+        .platform
+        .set_current_desktop_wallpaper(Some(next), None)?;
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::Synced(_, _)
+    ));
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    let applied_id = fixture
+        .core
+        .lock()
+        .expect("core lock")
+        .last_applied()
+        .expect("applied record")
+        .id
+        .clone();
+    let source = fixture
+        .core
+        .lock()
+        .expect("core lock")
+        .wallpaper(&applied_id)
+        .expect("applied wallpaper")
+        .source_path;
+    write_test_wallpaper_variant(&source, 37)?;
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::Synced(_, _)
+    ));
+    fixture.platform.set_current_desktop_wallpaper(None, None)?;
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    assert_eq!(lock_screen.synced_paths()?.len(), 3);
+    Ok(())
+}
+
+#[test]
+fn successful_apply_record_survives_library_removal_and_restart()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let fixture = test_worker_with_lock_screen("last-applied-record", Arc::new(NoopLockScreen))?;
+    let WorkerEvent::Synced(_, snapshot) = fixture.worker.handle(Command::SyncWallpaper {
+        id: fixture.wallpaper_id.to_string(),
+    }) else {
+        panic!("expected successful apply");
+    };
+    let applied = snapshot.last_applied.expect("application recorded");
+    let paths = fixture.core.lock().expect("core lock").paths().clone();
+    let mut legacy: serde_json::Value = serde_json::from_slice(&fs::read(&paths.library_file)?)?;
+    let legacy_fields = legacy.as_object_mut().expect("library object");
+    legacy_fields.remove("last_applied");
+    legacy_fields.remove("daily_wallpaper_id");
+    fs::write(&paths.library_file, serde_json::to_vec(&legacy)?)?;
+    let migrated = SpotlitCore::open(paths.clone(), Vec::new())?;
+    assert_eq!(migrated.last_applied(), Some(&applied));
+    drop(migrated);
+    fixture.worker.handle(Command::RemoveWallpaper {
+        id: fixture.wallpaper_id.to_string(),
+    });
+    let reopened = SpotlitCore::open(paths, Vec::new())?;
+    assert_eq!(reopened.last_applied(), Some(&applied));
+    assert!(reopened.wallpaper(&applied.id).is_none());
+    Ok(())
+}
+
+#[test]
+fn extension_update_is_only_performed_by_explicit_install_command()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let fixture =
+        test_worker_with_lock_screen("extension-update-command", Arc::new(NoopLockScreen))?;
+    fixture
+        .platform
+        .set_lock_screen_integration(LockScreenIntegration {
+            state: LockScreenIntegrationState::Enabled,
+            update_available: true,
+            ..LockScreenIntegration::default()
+        })?;
+    let WorkerEvent::Snapshot(snapshot) = fixture.worker.handle(Command::LoadSnapshot) else {
+        panic!("expected integration status");
+    };
+    assert!(snapshot.lock_screen_integration.update_available);
+    assert!(fixture.platform.integration_actions()?.is_empty());
+    let WorkerEvent::ConfigUpdated(message, settings) =
+        fixture.worker.handle(Command::InstallLockScreenIntegration)
+    else {
+        panic!("expected explicit extension update");
+    };
+    assert_eq!(message, "GNOME extension updated");
+    assert!(!settings.lock_screen_integration.update_available);
+    assert_eq!(fixture.platform.integration_actions()?, ["install"]);
+    Ok(())
+}
+
+#[test]
+fn auto_apply_pauses_for_extension_restart_without_losing_the_saved_policy()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let lock_screen = Arc::new(RecordingLockScreen::default());
+    let fixture = test_worker_with_lock_screen("extension-restart-pause", lock_screen.clone())?;
+    fixture.worker.handle(Command::SetAutoSync(true));
+    fixture
+        .platform
+        .set_lock_screen_integration(LockScreenIntegration {
+            state: LockScreenIntegrationState::RestartRequired,
+            ..LockScreenIntegration::default()
+        })?;
+    assert!(matches!(
+        fixture.worker.handle(Command::AutoSyncTick),
+        WorkerEvent::AutoSyncIdle
+    ));
+    assert!(
+        fixture
+            .core
+            .lock()
+            .expect("core lock")
+            .config()
+            .auto_sync_lock_screen
+    );
+    assert_eq!(lock_screen.synced_paths()?.len(), 1);
+    Ok(())
+}
+
+fn test_daily_creative(path: PathBuf, is_current: bool) -> DesktopSpotlightCreative {
+    DesktopSpotlightCreative {
+        landscape_path: path,
+        portrait_path: None,
+        metadata: SpotlightMetadata {
+            title: Some("Daily Bing Fixture".into()),
+            ..SpotlightMetadata::default()
+        },
+        is_current,
+    }
 }
 
 #[test]
@@ -993,8 +1286,12 @@ fn test_worker_with_lock_screen(
     let wallpaper = core
         .import_wallpaper_file(&source_image)?
         .expect("wallpaper was imported");
+    let mut config = core.config().clone();
+    config.wallpaper_source = WallpaperSource::CurrentDesktop;
+    core.update_config(config)?;
     let core = Arc::new(Mutex::new(core));
     let platform = Arc::new(FakePlatform::default());
+    platform.set_current_desktop_wallpaper(Some(source_image), None)?;
     let worker = Worker::new(core.clone(), lock_screen, platform.clone());
 
     Ok(WallpaperWorkerFixture {
@@ -1307,6 +1604,7 @@ impl PlatformServices for FakePlatform {
             state: LockScreenIntegrationState::Disabled,
             blur_mode: LockScreenBlurMode::System,
             display_mode: LockScreenDisplayMode::System,
+            update_available: false,
         };
         self.set_lock_screen_integration(integration)?;
         Ok(integration)

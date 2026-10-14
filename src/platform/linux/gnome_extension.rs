@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -16,6 +17,7 @@ pub const GNOME_EXTENSION_UUID: &str = "lock-screen@spotlit.app";
 
 const EXTENSION_BUNDLE: &str = "lock-screen@spotlit.app.shell-extension.zip";
 const EXTENSION_SCHEMA: &str = "org.gnome.shell.extensions.spotlit-lock-screen";
+const INSTALL_SESSION_FILE: &str = ".spotlit-install-session.json";
 const METADATA: &str =
     include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/metadata.json");
 const EXTENSION: &str =
@@ -27,6 +29,11 @@ const STYLESHEET: &str =
 const SCHEMA: &str = include_str!(
     "../../../extensions/gnome-shell/lock-screen@spotlit.app/schemas/org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml"
 );
+
+#[derive(Serialize, Deserialize)]
+struct InstallSession {
+    shell_session: String,
+}
 
 pub fn lock_screen_integration() -> Result<LockScreenIntegration> {
     let installed_extensions = match extension_list(&[]) {
@@ -77,6 +84,7 @@ pub fn lock_screen_integration() -> Result<LockScreenIntegration> {
 }
 
 pub fn install_lock_screen_integration(work_dir: &Path) -> Result<LockScreenIntegration> {
+    let shell_session = current_shell_session()?;
     let source_dir = materialize_extension(work_dir)?;
     let schema = source_dir
         .join("schemas")
@@ -104,6 +112,12 @@ pub fn install_lock_screen_integration(work_dir: &Path) -> Result<LockScreenInte
         "install GNOME lock screen extension",
     )?;
 
+    let extension_dir = installed_extension_dir()
+        .ok_or_else(|| SpotlitError::platform("installed GNOME extension was not found"))?;
+    crate::core::write_json_file(
+        &extension_dir.join(INSTALL_SESSION_FILE),
+        &InstallSession { shell_session },
+    )?;
     lock_screen_integration()
 }
 
@@ -175,13 +189,24 @@ fn integration(state: LockScreenIntegrationState) -> LockScreenIntegration {
         state,
         blur_mode: LockScreenBlurMode::System,
         display_mode: LockScreenDisplayMode::System,
+        update_available: false,
     }
 }
 
 fn integration_with_preferences(
-    state: LockScreenIntegrationState,
+    mut state: LockScreenIntegrationState,
     extension_dir: Option<&Path>,
 ) -> LockScreenIntegration {
+    let update_available = extension_dir.is_some_and(extension_needs_update);
+    if let Some(dir) = extension_dir
+        && !update_available
+        && let Ok(contents) = fs::read(dir.join(INSTALL_SESSION_FILE))
+        && let Ok(installed) = serde_json::from_slice::<InstallSession>(&contents)
+        && let Ok(session) = current_shell_session()
+        && installed.shell_session == session
+    {
+        state = LockScreenIntegrationState::RestartRequired;
+    }
     let schema_dir = extension_dir.map(|dir| dir.join("schemas"));
     let blur_mode = schema_dir
         .as_deref()
@@ -195,7 +220,80 @@ fn integration_with_preferences(
         state,
         blur_mode,
         display_mode,
+        update_available,
     }
+}
+
+fn extension_needs_update(dir: &Path) -> bool {
+    let files = [
+        ("extension.js", EXTENSION),
+        ("prefs.js", PREFERENCES),
+        ("stylesheet.css", STYLESHEET),
+        (
+            "schemas/org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml",
+            SCHEMA,
+        ),
+    ];
+    let installed_metadata = fs::read(dir.join("metadata.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+    let bundled_metadata = serde_json::from_str::<serde_json::Value>(METADATA)
+        .expect("bundled extension metadata is valid");
+    if installed_metadata
+        .as_ref()
+        .and_then(|metadata| metadata["version"].as_u64())
+        > bundled_metadata["version"].as_u64()
+    {
+        return false;
+    }
+    let metadata_matches = installed_metadata.as_ref() == Some(&bundled_metadata);
+    !metadata_matches
+        || files.iter().any(|(path, source)| {
+            fs::read_to_string(dir.join(path))
+                .ok()
+                .is_none_or(|installed| installed != *source)
+        })
+}
+
+fn current_shell_session() -> Result<String> {
+    let bus_id = dbus_string_call("org.freedesktop.DBus.GetId", None)?;
+    let owner = dbus_string_call("org.freedesktop.DBus.GetNameOwner", Some("org.gnome.Shell"))?;
+    Ok(format!("{bus_id}/{owner}"))
+}
+
+fn dbus_string_call(method: &str, argument: Option<&str>) -> Result<String> {
+    let mut command = Command::new("gdbus");
+    command.args([
+        "call",
+        "--session",
+        "--timeout",
+        "3",
+        "--dest",
+        "org.freedesktop.DBus",
+        "--object-path",
+        "/org/freedesktop/DBus",
+        "--method",
+        method,
+    ]);
+    if let Some(argument) = argument {
+        command.arg(argument);
+    }
+    let output = command
+        .output()
+        .map_err(|error| SpotlitError::platform(format!("query GNOME session: {error}")))?;
+    if !output.status.success() {
+        return Err(command_error("query GNOME session", &output));
+    }
+    parse_dbus_string(&String::from_utf8_lossy(&output.stdout))
+        .ok_or_else(|| SpotlitError::platform("GNOME session response is invalid"))
+}
+
+fn parse_dbus_string(value: &str) -> Option<String> {
+    value
+        .trim()
+        .strip_prefix("('")?
+        .strip_suffix("',)")
+        .map(str::to_string)
 }
 
 fn extension_list(extra_args: &[&str]) -> Result<Vec<String>> {
@@ -357,8 +455,44 @@ fn command_error(description: &str, output: &Output) -> SpotlitError {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_blur_mode, parse_display_mode, parse_extension_list};
+    use super::{
+        METADATA, extension_needs_update, materialize_extension, parse_blur_mode,
+        parse_dbus_string, parse_display_mode, parse_extension_list,
+    };
     use crate::platform::{LockScreenBlurMode, LockScreenDisplayMode};
+
+    #[test]
+    fn extension_update_detection_checks_payload_without_downgrading_newer_versions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let work_dir = std::env::temp_dir().join(format!(
+            "spotlit-extension-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        ));
+        let dir = materialize_extension(&work_dir)?;
+        assert!(!extension_needs_update(&dir));
+        let mut metadata: serde_json::Value = serde_json::from_str(METADATA)?;
+        std::fs::write(dir.join("metadata.json"), serde_json::to_vec(&metadata)?)?;
+        assert!(!extension_needs_update(&dir));
+        std::fs::write(dir.join("extension.js"), "old extension source")?;
+        assert!(extension_needs_update(&dir));
+        metadata["version"] =
+            serde_json::json!(metadata["version"].as_u64().expect("bundled version") + 1);
+        std::fs::write(dir.join("metadata.json"), serde_json::to_vec(&metadata)?)?;
+        assert!(!extension_needs_update(&dir));
+        std::fs::remove_dir_all(work_dir)?;
+        Ok(())
+    }
+
+    #[test]
+    fn session_identity_parser_accepts_only_single_string_responses() {
+        assert_eq!(parse_dbus_string("(':1.42',)\n"), Some(":1.42".to_string()));
+        assert_eq!(parse_dbus_string("('bus-id',)"), Some("bus-id".to_string()));
+        assert!(parse_dbus_string("()").is_none());
+        assert!(parse_dbus_string("unstructured response").is_none());
+    }
 
     #[test]
     fn extension_list_uses_exact_non_empty_lines() {

@@ -99,6 +99,7 @@ pub struct LockScreenIntegration {
     pub state: LockScreenIntegrationState,
     pub blur_mode: LockScreenBlurMode,
     pub display_mode: LockScreenDisplayMode,
+    pub update_available: bool,
 }
 
 #[cfg(windows)]

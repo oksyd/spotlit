@@ -10,7 +10,7 @@ repository = "https://github.com/oksyd/spotlit"
 readme = "README.md"
 categories = ["gui"]
 keywords = ["wallpaper", "spotlight", "bing", "desktop"]
-rust-version = "1.97.1"
+rust-version = "1.99.0"
 include = [
     "/build.rs",
     "/README.md",
@@ -26,19 +26,19 @@ include = [
 ]
 
 [dependencies]
-anyhow = { version = "1.0.102", default-features = false, features = ["std"] }
-thiserror = { version = "2.0.18", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.104", default-features = false, features = ["std"] }
+thiserror = { version = "2.0.21", default-features = false, features = ["std"] }
 
-chrono = { version = "0.4.44", default-features = false, features = ["clock", "serde", "std"] }
-serde = { version = "1.0.228", default-features = false, features = ["derive", "std"] }
-serde_json = { version = "1.0.150", default-features = false, features = ["std"] }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "serde", "std"] }
+serde = { version = "1.0.229", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "1.0.154", default-features = false, features = ["std"] }
 semver = { version = "1.0.28", default-features = false, features = ["std"] }
 
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
-sha2 = { version = "0.11.0", default-features = false }
+sha2 = { version = "0.11.1", default-features = false }
 
-slint = { version = "1.17.1", default-features = false, features = ["backend-winit", "compat-1-2", "renderer-femtovg", "renderer-software", "std", "system-tray", "unstable-winit-030"] }
-reqx = { version = "0.1.41", default-features = false, features = ["blocking-tls-rustls-ring"] }
+slint = { version = "1.18.1", default-features = false, features = ["backend-winit", "compat-1-18", "renderer-femtovg", "renderer-software", "std", "system-tray", "unstable-winit-030"] }
+reqx = { version = "0.2.10", default-features = false, features = ["blocking-tls-rustls-ring"] }
 sys-locale = { version = "0.3.2", default-features = false }
 
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
@@ -46,14 +46,14 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", default-features = false, features = ["std", "Storage", "Storage_Streams", "System_UserProfile", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Shutdown", "Win32_System_Threading", "Win32_UI_Controls_Dialogs", "Win32_UI_WindowsAndMessaging"] }
-zip = { version = "8.1.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+zip = { version = "9.0.3", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
-slint-snapshot = { version = "=0.1.1", features = ["testing"] }
+slint-snapshot = { version = "=0.1.2", features = ["testing"] }
 
 [build-dependencies]
-resvg = { version = "0.47.0", default-features = false }
-slint-build = { version = "1.17.1", default-features = false, features = ["default"] }
+resvg = { version = "0.48.1", default-features = false }
+slint-build = { version = "1.18.1", default-features = false, features = ["default"] }
 
 [profile.release]
 lto = "thin"

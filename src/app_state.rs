@@ -28,6 +28,7 @@ use crate::{
 };
 
 const SCHEDULER_TICK: Duration = Duration::from_secs(60);
+const SOURCE_REFRESH_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const PRESENT_REFRESH_COOLDOWN: Duration = Duration::from_secs(30);
 const CACHED_SNAPSHOT_APPLY_DELAY: Duration = Duration::from_millis(16);
 const SNAPSHOT_LOAD_AFTER_PRESENT_DELAY: Duration = Duration::from_millis(96);
@@ -1046,17 +1047,8 @@ impl AppState {
                     }
                 };
 
+                let mut next_source_refresh = Instant::now() + SOURCE_REFRESH_INTERVAL;
                 loop {
-                    while !*enabled {
-                        enabled = match changed.wait(enabled) {
-                            Ok(enabled) => enabled,
-                            Err(error) => {
-                                tracing::warn!(%error, "auto-sync scheduler wait failed");
-                                return;
-                            }
-                        };
-                    }
-
                     let wait_result = changed.wait_timeout(enabled, SCHEDULER_TICK);
                     let (next_enabled, timeout) = match wait_result {
                         Ok(result) => result,
@@ -1067,9 +1059,16 @@ impl AppState {
                     };
                     enabled = next_enabled;
 
-                    if *enabled && timeout.timed_out() {
+                    if timeout.timed_out() {
+                        let apply_enabled = *enabled;
                         drop(enabled);
-                        state.dispatch(Command::AutoSyncTick);
+                        if Instant::now() >= next_source_refresh {
+                            state.dispatch(Command::RefreshSources);
+                            next_source_refresh = Instant::now() + SOURCE_REFRESH_INTERVAL;
+                        }
+                        if apply_enabled {
+                            state.dispatch(Command::AutoSyncTick);
+                        }
                         enabled = match state.auto_sync_state.0.lock() {
                             Ok(enabled) => enabled,
                             Err(error) => {
@@ -2200,6 +2199,7 @@ mod tests {
     fn test_snapshot(ui_signature: u64) -> PreparedSnapshot {
         PreparedSnapshot {
             current: None,
+            last_applied: None,
             wallpapers: Vec::new().into(),
             library_count: 0,
             favorite_count: 0,

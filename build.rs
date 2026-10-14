@@ -203,7 +203,7 @@ fn render_svg(tree: &usvg::Tree, size: u16) -> BuildResult<Vec<u8>> {
 }
 
 fn unpremultiply_rgba(mut rgba: Vec<u8>) -> Vec<u8> {
-    for pixel in rgba.chunks_exact_mut(4) {
+    for pixel in rgba.as_chunks_mut::<4>().0 {
         let alpha = u16::from(pixel[3]);
         if alpha == 0 || alpha == 255 {
             continue;
@@ -242,7 +242,10 @@ fn icon_dib(size: u16, rgba: Vec<u8>) -> Vec<u8> {
 
     for y in (0..size).rev() {
         let row_start = (y * size * 4) as usize;
-        for pixel in rgba[row_start..row_start + (size * 4) as usize].chunks_exact(4) {
+        for pixel in rgba[row_start..row_start + (size * 4) as usize]
+            .as_chunks::<4>()
+            .0
+        {
             output.push(pixel[2]);
             output.push(pixel[1]);
             output.push(pixel[0]);

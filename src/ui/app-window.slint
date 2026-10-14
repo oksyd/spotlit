@@ -1,4 +1,5 @@
 import { WallpaperItem } from "models.slint";
+import { Palette } from "std-widgets.slint";
 import {
   ActionSeparator,
   BodyText,
@@ -41,6 +42,7 @@ export global I18n {
     if value == "GNOME extension disabled" { return @tr("GNOME extension disabled"); }
     if value == "GNOME extension enabled" { return @tr("GNOME extension enabled"); }
     if value == "GNOME extension installed" { return @tr("GNOME extension installed"); }
+    if value == "GNOME extension updated" { return @tr("GNOME extension updated"); }
     if value == "History limit saved" { return @tr("History limit saved"); }
     if value == "Import canceled" { return @tr("Import canceled"); }
     if value == "Import request failed" { return @tr("Import request failed"); }
@@ -146,6 +148,11 @@ export component MainWindow inherits Window {
   in-out property <bool> lock-screen-apply-available: true;
   in-out property <bool> gnome-integration-visible: false;
   in-out property <string> gnome-integration-state-text: "Not Installed";
+  in-out property <bool> gnome-integration-update-available: false;
+  in-out property <bool> daily-bing-available: false;
+  in-out property <string> last-applied-id: "";
+  in-out property <string> last-applied-title: "";
+  in-out property <string> last-applied-time: "";
   in-out property <string> lock-screen-blur-text: "System";
   in-out property <string> lock-screen-display-text: "System";
   in-out property <bool> start-at-login-enabled: false;
@@ -154,6 +161,8 @@ export component MainWindow inherits Window {
   in-out property <string> language-code: "system";
   in-out property <bool> favorites-only-enabled: false;
   in-out property <bool> dark-theme: false;
+  init => { Palette.color-scheme = root.dark-theme ? ColorScheme.dark : ColorScheme.light; }
+  changed dark-theme => { Palette.color-scheme = root.dark-theme ? ColorScheme.dark : ColorScheme.light; }
   in-out property <bool> show-settings: false;
   in-out property <string> settings-page: "wallpaper";
   in-out property <bool> show-current-details: false;
@@ -285,12 +294,12 @@ export component MainWindow inherits Window {
   private property <bool> active-remove-commandable: root.active-wallpaper-commandable && !root.show-settings && !root.user-command-pending;
   private property <bool> settings-openable: !root.show-settings && (root.settings-operation-pending || root.settings-owned-external-action-pending || !root.user-command-pending);
   private property <string> active-context-label: !root.has-active-wallpaper
-    ? (root.summary-action-feedback-text != "" ? @tr("STATUS") : @tr("CURRENT WALLPAPER"))
+    ? (root.summary-action-feedback-text != "" ? @tr("STATUS") : @tr("PREVIEW"))
     : root.summary-action-feedback-text != ""
       ? root.summary-action-feedback-text
       : root.favorites-only-enabled && root.has-selection && !root.selected-wallpaper.favorite
         ? @tr("NOT IN FAVORITES")
-      : (root.has-selection ? @tr("SELECTED WALLPAPER") : @tr("CURRENT WALLPAPER"));
+      : @tr("PREVIEW");
   private property <bool> has-visible-wallpapers: root.favorites-only-enabled ? root.favorite-wallpapers.length > 0 : root.wallpapers.length > 0;
   private property <length> window-padding: 14px;
   private property <length> raw-workspace-height: root.height - root.window-padding * 2;
@@ -300,7 +309,7 @@ export component MainWindow inherits Window {
   private property <length> min-main-panel-width: 420px;
   private property <length> panel-padding: 12px;
   private property <length> panel-spacing: 12px;
-  private property <length> wallpaper-summary-height: 84px;
+  private property <length> wallpaper-summary-height: 108px;
   private property <length> wallpaper-summary-text-gap: 4px;
   private property <int> wallpaper-title-size: 24;
   private property <length> wallpaper-title-height: 34px;
@@ -546,11 +555,7 @@ export component MainWindow inherits Window {
       root.sync-pending = true;
       root.sync-pending-id = root.active-wallpaper-id;
       root.action-status-requested(@tr("Applying wallpaper"));
-      if root.has-selection {
-        root.wallpaper-sync-requested(root.active-wallpaper-id);
-      } else {
-        root.sync-requested();
-      }
+      root.wallpaper-sync-requested(root.active-wallpaper-id);
       root.focus-main-workspace();
     }
   }
@@ -1026,6 +1031,14 @@ export component MainWindow inherits Window {
                   dark-theme: root.dark-theme;
                   height: root.wallpaper-detail-height;
                 }
+                BodyText {
+                  text: root.last-applied-id == "" ? @tr("No wallpaper applied by Spotlit")
+                    : root.last-applied-id == root.active-wallpaper-id
+                      ? @tr("Last applied to lock screen: {}", root.last-applied-time)
+                      : @tr("Last applied: {}", root.last-applied-title);
+                  dark-theme: root.dark-theme;
+                  height: 20px;
+                }
               }
 
               Rectangle {
@@ -1043,8 +1056,8 @@ export component MainWindow inherits Window {
 
                   if root.has-selection: PreviewToolButton {
                     icon: @image-url("../../resources/icons/current.svg");
-                    label: @tr("Show Current Wallpaper");
-                    tooltip: @tr("Current");
+                    label: @tr("Show Latest Wallpaper");
+                    tooltip: @tr("Latest");
                     tooltip-width: 64px;
                     enabled: root.current-commandable;
                     dark-theme: root.dark-theme;
@@ -1092,7 +1105,7 @@ export component MainWindow inherits Window {
                   PrimaryActionButton {
                     icon: @image-url("../../resources/icons/sync.svg");
                     text: root.active-sync-pending ? @tr("Applying") : @tr("Apply");
-                    assistive-label: root.active-sync-pending ? @tr("Applying Wallpaper") : @tr("Apply Wallpaper");
+                    assistive-label: root.active-sync-pending ? @tr("Applying Wallpaper") : @tr("Apply to Lock Screen");
                     enabled: root.active-sync-commandable;
                     busy: root.active-sync-pending;
                     dark-theme: root.dark-theme;
@@ -1341,6 +1354,8 @@ export component MainWindow inherits Window {
       lock-screen-apply-available: root.lock-screen-apply-available;
       gnome-integration-visible: root.gnome-integration-visible;
       gnome-integration-state-text: root.gnome-integration-state-text;
+      gnome-integration-update-available: root.gnome-integration-update-available;
+      daily-bing-available: root.daily-bing-available;
       lock-screen-blur-text: root.lock-screen-blur-text;
       lock-screen-display-text: root.lock-screen-display-text;
       start-at-login-enabled: root.start-at-login-enabled;

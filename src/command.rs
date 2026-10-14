@@ -1,6 +1,7 @@
 #[derive(Debug, Clone)]
 pub enum Command {
     AutoSyncTick,
+    RefreshSources,
     CleanCache,
     ExportWallpaper { id: String },
     ImportImage,
@@ -37,6 +38,7 @@ impl Command {
     pub fn name(&self) -> &'static str {
         match self {
             Self::AutoSyncTick => "auto_sync_tick",
+            Self::RefreshSources => "refresh_sources",
             Self::CleanCache => "clean_cache",
             Self::ExportWallpaper { .. } => "export_wallpaper",
             Self::ImportImage => "import_image",

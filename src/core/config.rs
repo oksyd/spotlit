@@ -33,7 +33,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             auto_sync_lock_screen: false,
-            wallpaper_source: WallpaperSource::CurrentDesktop,
+            wallpaper_source: WallpaperSource::default(),
             sync_interval_minutes: 30,
             theme: ThemeMode::System,
             start_at_login: false,
@@ -67,13 +67,23 @@ pub fn normalized_history_limit(limit: u16) -> NonZeroU16 {
     NonZeroU16::new(limit).expect("history limit is clamped above zero")
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WallpaperSource {
-    #[default]
+    DailyBing,
     CurrentDesktop,
     RandomLibrary,
     RandomFavorites,
+}
+
+impl Default for WallpaperSource {
+    fn default() -> Self {
+        if cfg!(target_os = "linux") {
+            Self::DailyBing
+        } else {
+            Self::CurrentDesktop
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Eq, PartialEq)]
@@ -225,7 +235,7 @@ mod tests {
         let config = ConfigStore::new(config_path).load_or_default()?;
 
         assert!(config.auto_sync_lock_screen);
-        assert_eq!(config.wallpaper_source, WallpaperSource::CurrentDesktop);
+        assert_eq!(config.wallpaper_source, WallpaperSource::default());
         assert_eq!(config.sync_interval_minutes, 30);
         assert_eq!(config.theme, ThemeMode::System);
         assert!(!config.start_at_login);

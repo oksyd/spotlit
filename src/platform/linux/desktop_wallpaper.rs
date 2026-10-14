@@ -23,16 +23,22 @@ impl GnomeLockScreen {
 }
 
 pub fn current_desktop_wallpaper() -> Result<Option<PathBuf>> {
-    let uri = gsettings_get(DESKTOP_BACKGROUND_SCHEMA, "picture-uri-dark")
-        .ok()
-        .and_then(|value| parse_gsettings_string(&value))
-        .or_else(|| {
-            gsettings_get(DESKTOP_BACKGROUND_SCHEMA, "picture-uri")
+    let uri = desktop_wallpaper_keys(super::system_theme()?)
+        .into_iter()
+        .find_map(|key| {
+            gsettings_get(DESKTOP_BACKGROUND_SCHEMA, key)
                 .ok()
                 .and_then(|value| parse_gsettings_string(&value))
         });
 
     Ok(uri.as_deref().and_then(file_uri_to_path))
+}
+
+fn desktop_wallpaper_keys(theme: super::SystemTheme) -> [&'static str; 2] {
+    match theme {
+        super::SystemTheme::Light => ["picture-uri", "picture-uri-dark"],
+        super::SystemTheme::Dark => ["picture-uri-dark", "picture-uri"],
+    }
 }
 
 fn gsettings_get(schema: &str, key: &str) -> Result<String> {
@@ -169,7 +175,19 @@ fn hex_digit(value: u8) -> Option<u8> {
 mod tests {
     use std::path::Path;
 
-    use super::{file_uri, file_uri_to_path};
+    use super::{desktop_wallpaper_keys, file_uri, file_uri_to_path};
+
+    #[test]
+    fn desktop_source_prefers_the_active_system_color_scheme() {
+        assert_eq!(
+            desktop_wallpaper_keys(crate::platform::linux::SystemTheme::Light)[0],
+            "picture-uri"
+        );
+        assert_eq!(
+            desktop_wallpaper_keys(crate::platform::linux::SystemTheme::Dark)[0],
+            "picture-uri-dark"
+        );
+    }
 
     #[test]
     fn wallpaper_paths_round_trip_through_file_uris() {

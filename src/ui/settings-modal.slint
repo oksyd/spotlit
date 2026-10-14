@@ -1,4 +1,4 @@
-import { AboutSlint, ScrollView } from "std-widgets.slint";
+import { ComboBox, ScrollView } from "std-widgets.slint";
 import {
   BodyText,
   Button,
@@ -31,6 +31,8 @@ component SettingsPageContent inherits VerticalLayout {
   in property <bool> lock-screen-apply-available: true;
   in property <bool> gnome-integration-visible: false;
   in property <string> gnome-integration-state-text: "Not Installed";
+  in property <bool> gnome-integration-update-available: false;
+  in property <bool> daily-bing-available: false;
   in property <string> lock-screen-blur-text: "System";
   in property <string> lock-screen-display-text: "System";
   in property <bool> start-at-login-enabled: false;
@@ -54,10 +56,7 @@ component SettingsPageContent inherits VerticalLayout {
   in property <length> sync-segment-width: 82px;
   in property <length> sync-group-width: 254px;
   in property <length> target-value-width: 184px;
-  in property <length> source-current-width: 86px;
-  in property <length> source-library-width: 78px;
-  in property <length> source-favorites-width: 94px;
-  in property <length> source-group-width: 266px;
+  in property <length> source-group-width: 298px;
   in property <length> history-option-width: 64px;
   in property <length> history-unlimited-width: 96px;
   in property <length> history-group-width: 298px;
@@ -131,61 +130,29 @@ component SettingsPageContent inherits VerticalLayout {
     }
 
     SettingRow {
-      label: @tr("Source");
+      label: @tr("Mode");
       row-height: 34px;
       dark-theme: root.dark-theme;
 
-      SegmentGroup {
-        label: @tr("Wallpaper Source");
-        dark-theme: root.dark-theme;
+      mode := ComboBox {
         width: root.source-group-width;
-
-        Segment {
-          text: @tr("Current");
-          context: @tr("Wallpaper Source");
-          selected: root.wallpaper-source-text == "Current Desktop";
-          enabled: root.controls-enabled;
-          dark-theme: root.dark-theme;
-          grouped: true;
-          width: root.source-current-width;
-          clicked => {
-            root.clear-cache-confirmation-requested();
-            root.wallpaper-source-selected("current_desktop");
-          }
-        }
-
-        Segment {
-          text: @tr("Library");
-          context: @tr("Wallpaper Source");
-          selected: root.wallpaper-source-text == "Library";
-          enabled: root.controls-enabled;
-          dark-theme: root.dark-theme;
-          grouped: true;
-          width: root.source-library-width;
-          clicked => {
-            root.clear-cache-confirmation-requested();
-            root.wallpaper-source-selected("random_library");
-          }
-        }
-
-        Segment {
-          text: @tr("Favorites");
-          context: @tr("Wallpaper Source");
-          selected: root.wallpaper-source-text == "Favorites";
-          enabled: root.controls-enabled;
-          dark-theme: root.dark-theme;
-          grouped: true;
-          width: root.source-favorites-width;
-          clicked => {
-            root.clear-cache-confirmation-requested();
-            root.wallpaper-source-selected("random_favorites");
-          }
+        enabled: root.controls-enabled;
+        model: root.daily-bing-available
+          ? [@tr("Daily Bing"), @tr("Follow Desktop"), @tr("Library Rotation"), @tr("Favorites Rotation")]
+          : [@tr("Follow Desktop"), @tr("Library Rotation"), @tr("Favorites Rotation")];
+        current-index: root.wallpaper-source-text == "Daily Bing" ? 0
+          : (root.daily-bing-available ? 1 : 0) + (root.wallpaper-source-text == "Library" ? 1 : root.wallpaper-source-text == "Favorites" ? 2 : 0);
+        selected => {
+          root.clear-cache-confirmation-requested();
+          let index = self.current-index - (root.daily-bing-available ? 1 : 0);
+          root.wallpaper-source-selected(index < 0 ? "daily_bing" : index == 0 ? "current_desktop" : index == 1 ? "random_library" : "random_favorites");
         }
       }
     }
 
-    SettingRow {
-      label: @tr("Sync Interval");
+    if root.wallpaper-source-text == "Library" || root.wallpaper-source-text == "Favorites": SettingRow {
+      label: @tr("Rotation Interval");
+      label-width: 132px;
       row-height: 34px;
       dark-theme: root.dark-theme;
 
@@ -256,21 +223,21 @@ component SettingsPageContent inherits VerticalLayout {
         horizontal-alignment: right;
       }
 
-      if root.gnome-integration-state-text == "Not Installed": Button {
-        text: @tr("Install");
-        assistive-label: @tr("Install GNOME Lock Screen Extension");
+      if root.gnome-integration-state-text == "Not Installed" || root.gnome-integration-update-available: Button {
+        text: root.gnome-integration-update-available ? @tr("Update") : @tr("Install");
+        assistive-label: root.gnome-integration-update-available ? @tr("Update GNOME Lock Screen Extension") : @tr("Install GNOME Lock Screen Extension");
         enabled: root.controls-enabled;
         dark-theme: root.dark-theme;
-        width: 76px;
+        width: 112px;
         clicked => { root.gnome-integration-install-requested(); }
       }
 
-      if root.gnome-integration-state-text == "Disabled": Button {
+      if root.gnome-integration-state-text == "Disabled" && !root.gnome-integration-update-available: Button {
         text: @tr("Enable");
         assistive-label: @tr("Enable GNOME Lock Screen Extension");
         enabled: root.controls-enabled;
         dark-theme: root.dark-theme;
-        width: 76px;
+        width: 104px;
         clicked => { root.gnome-integration-enabled-changed(true); }
       }
 
@@ -279,7 +246,7 @@ component SettingsPageContent inherits VerticalLayout {
         assistive-label: @tr("Disable GNOME Lock Screen Extension");
         enabled: root.controls-enabled;
         dark-theme: root.dark-theme;
-        width: 76px;
+        width: 104px;
         clicked => { root.gnome-integration-enabled-changed(false); }
       }
     }
@@ -623,17 +590,6 @@ component SettingsPageContent inherits VerticalLayout {
     }
   }
 
-  if root.active-page == "app": SettingsSection {
-    width: root.page-width;
-    title: @tr("ABOUT");
-    dark-theme: root.dark-theme;
-
-    AboutSlint {
-      width: root.page-width;
-      height: 108px;
-    }
-  }
-
   if root.active-page == "storage": SettingsSection {
     width: root.page-width;
     title: @tr("STORAGE");
@@ -801,6 +757,8 @@ export component SettingsModal inherits FocusScope {
   in property <bool> lock-screen-apply-available: true;
   in property <bool> gnome-integration-visible: false;
   in property <string> gnome-integration-state-text: "Not Installed";
+  in property <bool> gnome-integration-update-available: false;
+  in property <bool> daily-bing-available: false;
   in property <string> lock-screen-blur-text: "System";
   in property <string> lock-screen-display-text: "System";
   in property <bool> start-at-login-enabled: false;
@@ -872,10 +830,7 @@ export component SettingsModal inherits FocusScope {
   private property <length> sync-segment-width: 82px;
   private property <length> sync-group-width: 254px;
   private property <length> target-value-width: 184px;
-  private property <length> source-current-width: 86px;
-  private property <length> source-library-width: 78px;
-  private property <length> source-favorites-width: 94px;
-  private property <length> source-group-width: 266px;
+  private property <length> source-group-width: 298px;
   private property <length> history-option-width: 64px;
   private property <length> history-unlimited-width: 96px;
   private property <length> history-group-width: 298px;
@@ -1075,7 +1030,7 @@ export component SettingsModal inherits FocusScope {
 
           if root.compact-layout: ScrollView {
             height: root.page-scroll-height;
-            viewport-width: root.page-viewport-width;
+            content-width: root.page-viewport-width;
 
             SettingsPageContent {
               page-width: root.page-content-width;
@@ -1092,6 +1047,8 @@ export component SettingsModal inherits FocusScope {
               lock-screen-apply-available: root.lock-screen-apply-available;
               gnome-integration-visible: root.gnome-integration-visible;
               gnome-integration-state-text: root.gnome-integration-state-text;
+              gnome-integration-update-available: root.gnome-integration-update-available;
+              daily-bing-available: root.daily-bing-available;
               lock-screen-blur-text: root.lock-screen-blur-text;
               lock-screen-display-text: root.lock-screen-display-text;
               start-at-login-enabled: root.start-at-login-enabled;
@@ -1115,9 +1072,6 @@ export component SettingsModal inherits FocusScope {
               sync-segment-width: root.sync-segment-width;
               sync-group-width: root.sync-group-width;
               target-value-width: root.target-value-width;
-              source-current-width: root.source-current-width;
-              source-library-width: root.source-library-width;
-              source-favorites-width: root.source-favorites-width;
               source-group-width: root.source-group-width;
               history-option-width: root.history-option-width;
               history-unlimited-width: root.history-unlimited-width;
@@ -1244,7 +1198,7 @@ export component SettingsModal inherits FocusScope {
 
             ScrollView {
               height: root.content-height;
-              viewport-width: root.page-viewport-width;
+              content-width: root.page-viewport-width;
 
               SettingsPageContent {
                 page-width: root.page-content-width;
@@ -1261,6 +1215,8 @@ export component SettingsModal inherits FocusScope {
                 lock-screen-apply-available: root.lock-screen-apply-available;
                 gnome-integration-visible: root.gnome-integration-visible;
                 gnome-integration-state-text: root.gnome-integration-state-text;
+                gnome-integration-update-available: root.gnome-integration-update-available;
+                daily-bing-available: root.daily-bing-available;
                 lock-screen-blur-text: root.lock-screen-blur-text;
                 lock-screen-display-text: root.lock-screen-display-text;
                 start-at-login-enabled: root.start-at-login-enabled;
@@ -1284,9 +1240,6 @@ export component SettingsModal inherits FocusScope {
                 sync-segment-width: root.sync-segment-width;
                 sync-group-width: root.sync-group-width;
                 target-value-width: root.target-value-width;
-                source-current-width: root.source-current-width;
-                source-library-width: root.source-library-width;
-                source-favorites-width: root.source-favorites-width;
                 source-group-width: root.source-group-width;
                 history-option-width: root.history-option-width;
                 history-unlimited-width: root.history-unlimited-width;
