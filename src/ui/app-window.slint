@@ -105,7 +105,12 @@ export global I18n {
     if value == "Update download could not be started" { return @tr("Update download could not be started"); }
     if value == "Update install could not be started" { return @tr("Update install could not be started"); }
     if value == "Update setting saved" { return @tr("Update setting saved"); }
-    if value == "Opened update in the system installer" { return @tr("Opened update in the system installer"); }
+    if value == "Update proxy saved" { return @tr("Update proxy saved"); }
+    if value == "Invalid HTTP proxy address" { return @tr("Invalid HTTP proxy address"); }
+    if value == "Invalid proxy mode" { return @tr("Invalid proxy mode"); }
+    if value == "Update installed; restart Spotlit to finish" { return @tr("Update installed; restart Spotlit to finish"); }
+    if value == "Update installation cancelled" { return @tr("Update installation cancelled"); }
+    if value == "Restart failed; close and reopen Spotlit" { return @tr("Restart failed; close and reopen Spotlit"); }
     if value == "Wallpaper applied" { return @tr("Wallpaper applied"); }
     if value == "Wallpaper source saved" { return @tr("Wallpaper source saved"); }
     if value == "Dark" { return @tr("Dark"); }
@@ -125,7 +130,7 @@ export global I18n {
   public pure function update-download-failed(error: string) -> string { return @tr("Update download failed: {}", error); }
   public pure function update-install-failed(error: string) -> string { return @tr("Update install failed: {}", error); }
   public pure function update-ready(version: string) -> string { return @tr("Ready to install v{}", version); }
-  public pure function update-installer-opened(version: string) -> string { return @tr("System installer opened for v{}", version); }
+  public pure function update-installed(version: string) -> string { return @tr("Restart to use v{}", version); }
   public pure function failed(error: string) -> string { return @tr("Failed: {}", error); }
   public pure function cache-cleaned(count: string) -> string { return @tr("Cache cleaned: {} wallpapers removed", count); }
   public pure function history-limit-removed(count: string) -> string { return @tr("History limit saved: {} wallpapers removed", count); }
@@ -158,6 +163,8 @@ export component MainWindow inherits Window {
   in-out property <bool> start-at-login-enabled: false;
   in-out property <bool> keep-running-in-background-enabled: true;
   in-out property <bool> automatic-update-checks-enabled: true;
+  in-out property <string> update-proxy-mode: "environment";
+  in-out property <string> update-proxy-url: "";
   in-out property <string> language-code: "system";
   in-out property <bool> favorites-only-enabled: false;
   in-out property <bool> dark-theme: false;
@@ -192,8 +199,8 @@ export component MainWindow inherits Window {
               ? I18n.update-ready(root.update-status-version)
               : root.update-status-kind == "installing"
                 ? @tr("Preparing installation")
-                : root.update-status-kind == "installer-opened"
-                  ? I18n.update-installer-opened(root.update-status-version)
+                : root.update-status-kind == "installed"
+                  ? I18n.update-installed(root.update-status-version)
                   : root.update-status-kind == "up-to-date"
                     ? I18n.up-to-date(root.update-status-version)
                     : root.update-status-kind == "check-failed"
@@ -356,6 +363,7 @@ export component MainWindow inherits Window {
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
   callback automatic-update-checks-changed(bool);
+  callback update-proxy-saved(string, string);
   callback language-selected(string);
   callback history-limit-selected(int);
   callback wallpaper-source-selected(string);
@@ -1361,6 +1369,8 @@ export component MainWindow inherits Window {
       start-at-login-enabled: root.start-at-login-enabled;
       keep-running-in-background-enabled: root.keep-running-in-background-enabled;
       automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+      update-proxy-mode: root.update-proxy-mode;
+      update-proxy-url: root.update-proxy-url;
       language-code: root.language-code;
       wallpaper-source-text: root.wallpaper-source-text;
       sync-interval-text: root.sync-interval-text;
@@ -1423,6 +1433,11 @@ export component MainWindow inherits Window {
       automatic-update-checks-changed(enabled) => {
         if root.begin-settings-save() {
           root.automatic-update-checks-changed(enabled);
+        }
+      }
+      update-proxy-saved(mode, url) => {
+        if root.begin-settings-save() {
+          root.update-proxy-saved(mode, url);
         }
       }
       language-selected(language) => {

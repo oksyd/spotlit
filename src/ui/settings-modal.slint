@@ -1,4 +1,4 @@
-import { ComboBox, ScrollView } from "std-widgets.slint";
+import { ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
 import {
   BodyText,
   Button,
@@ -38,6 +38,13 @@ component SettingsPageContent inherits VerticalLayout {
   in property <bool> start-at-login-enabled: false;
   in property <bool> keep-running-in-background-enabled: true;
   in property <bool> automatic-update-checks-enabled: true;
+  in property <string> update-proxy-mode: "environment";
+  in property <string> update-proxy-url: "";
+  private property <string> proxy-draft-mode: root.update-proxy-mode;
+  private property <string> proxy-draft-url: root.update-proxy-url;
+  private property <bool> proxy-dirty: root.proxy-draft-mode != root.update-proxy-mode || root.proxy-draft-url != root.update-proxy-url;
+  changed update-proxy-mode => { root.proxy-draft-mode = root.update-proxy-mode; }
+  changed update-proxy-url => { root.proxy-draft-url = root.update-proxy-url; }
   in property <string> language-code: "system";
   in property <string> wallpaper-source-text: "Current Desktop";
   in property <string> sync-interval-text: "30 minutes";
@@ -77,6 +84,7 @@ component SettingsPageContent inherits VerticalLayout {
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
   callback automatic-update-checks-changed(bool);
+  callback update-proxy-saved(string, string);
   callback language-selected(string);
   callback history-limit-selected(int);
   callback sync-interval-selected(int);
@@ -509,15 +517,19 @@ component SettingsPageContent inherits VerticalLayout {
             ? @tr("Download")
             : root.update-action-kind == "install"
               ? @tr("Install")
-              : @tr("Check");
+              : root.update-action-kind == "restart"
+                ? @tr("Restart")
+                : @tr("Check");
         assistive-label: root.update-action-kind == "view"
           ? @tr("View Latest Spotlit Release")
           : root.update-action-kind == "download"
             ? @tr("Download Spotlit Update")
             : root.update-action-kind == "install"
               ? @tr("Install Spotlit Update")
-              : @tr("Check for Spotlit Updates");
-        enabled: root.controls-enabled && root.update-action-kind != "none" && !root.external-action-pending;
+              : root.update-action-kind == "restart"
+                ? @tr("Restart Spotlit")
+                : @tr("Check for Spotlit Updates");
+        enabled: root.controls-enabled && !root.proxy-dirty && root.update-action-kind != "none" && !root.external-action-pending;
         busy: root.update-status-kind == "checking"
           || root.update-status-kind == "downloading"
           || root.update-status-kind == "installing"
@@ -529,6 +541,50 @@ component SettingsPageContent inherits VerticalLayout {
             root.update-check-requested();
           } else {
             root.update-action-requested();
+          }
+        }
+      }
+    }
+
+    SettingRow {
+      label: @tr("Update Proxy");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      ComboBox {
+        width: 194px;
+        enabled: root.controls-enabled;
+        model: [@tr("Environment"), @tr("Direct"), @tr("HTTP Proxy")];
+        current-index: root.proxy-draft-mode == "custom" ? 2 : root.proxy-draft-mode == "direct" ? 1 : 0;
+        selected => {
+          root.proxy-draft-mode = self.current-index == 2 ? "custom" : self.current-index == 1 ? "direct" : "environment";
+        }
+      }
+
+      Button {
+        text: @tr("Save");
+        assistive-label: @tr("Save Update Proxy");
+        width: 96px;
+        enabled: root.controls-enabled && root.proxy-dirty && (root.proxy-draft-mode != "custom" || root.proxy-draft-url != "");
+        dark-theme: root.dark-theme;
+        clicked => { root.update-proxy-saved(root.proxy-draft-mode, root.proxy-draft-url); }
+      }
+    }
+
+    if root.proxy-draft-mode == "custom": SettingRow {
+      label: @tr("Address");
+      row-height: 34px;
+      dark-theme: root.dark-theme;
+
+      LineEdit {
+        text <=> root.proxy-draft-url;
+        placeholder-text: "http://127.0.0.1:7890";
+        accessible-label: @tr("HTTP Proxy Address");
+        enabled: root.controls-enabled;
+        width: 298px;
+        accepted => {
+          if root.controls-enabled && root.proxy-dirty && root.proxy-draft-url != "" {
+            root.update-proxy-saved(root.proxy-draft-mode, root.proxy-draft-url);
           }
         }
       }
@@ -738,6 +794,7 @@ component SettingsPageContent inherits VerticalLayout {
         }
       }
     }
+
   }
 }
 
@@ -764,6 +821,8 @@ export component SettingsModal inherits FocusScope {
   in property <bool> start-at-login-enabled: false;
   in property <bool> keep-running-in-background-enabled: true;
   in property <bool> automatic-update-checks-enabled: true;
+  in property <string> update-proxy-mode: "environment";
+  in property <string> update-proxy-url: "";
   in property <string> language-code: "system";
   in property <string> wallpaper-source-text: "Current Desktop";
   in property <string> sync-interval-text: "30 minutes";
@@ -854,6 +913,7 @@ export component SettingsModal inherits FocusScope {
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
   callback automatic-update-checks-changed(bool);
+  callback update-proxy-saved(string, string);
   callback language-selected(string);
   callback history-limit-selected(int);
   callback sync-interval-selected(int);
@@ -1054,6 +1114,8 @@ export component SettingsModal inherits FocusScope {
               start-at-login-enabled: root.start-at-login-enabled;
               keep-running-in-background-enabled: root.keep-running-in-background-enabled;
               automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+              update-proxy-mode: root.update-proxy-mode;
+              update-proxy-url: root.update-proxy-url;
               language-code: root.language-code;
               wallpaper-source-text: root.wallpaper-source-text;
               sync-interval-text: root.sync-interval-text;
@@ -1114,6 +1176,9 @@ export component SettingsModal inherits FocusScope {
               }
               automatic-update-checks-changed(enabled) => {
                 root.automatic-update-checks-changed(enabled);
+              }
+              update-proxy-saved(mode, url) => {
+                root.update-proxy-saved(mode, url);
               }
               language-selected(language) => {
                 root.language-selected(language);
@@ -1222,6 +1287,8 @@ export component SettingsModal inherits FocusScope {
                 start-at-login-enabled: root.start-at-login-enabled;
                 keep-running-in-background-enabled: root.keep-running-in-background-enabled;
                 automatic-update-checks-enabled: root.automatic-update-checks-enabled;
+                update-proxy-mode: root.update-proxy-mode;
+                update-proxy-url: root.update-proxy-url;
                 language-code: root.language-code;
                 wallpaper-source-text: root.wallpaper-source-text;
                 sync-interval-text: root.sync-interval-text;
@@ -1282,6 +1349,9 @@ export component SettingsModal inherits FocusScope {
                 }
                 automatic-update-checks-changed(enabled) => {
                   root.automatic-update-checks-changed(enabled);
+                }
+                update-proxy-saved(mode, url) => {
+                  root.update-proxy-saved(mode, url);
                 }
                 language-selected(language) => {
                   root.language-selected(language);

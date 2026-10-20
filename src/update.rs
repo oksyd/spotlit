@@ -5,7 +5,6 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::OnceLock,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -18,6 +17,8 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::core::{UpdateProxy, UpdateProxyMode};
+
 const GITHUB_API_HOST: &str = "https://api.github.com";
 const LATEST_RELEASE_PATH: &str = "/repos/oksyd/spotlit/releases/latest";
 const RELEASE_ASSET_PATH_PREFIX: &str = "/repos/oksyd/spotlit/releases/assets/";
@@ -26,6 +27,7 @@ const RELEASE_METADATA_MAX_BYTES: usize = 64 * 1024;
 const CHECKSUMS_MAX_BYTES: usize = 64 * 1024;
 const PACKAGE_MAX_BYTES: u64 = 128 * 1024 * 1024;
 const UPDATE_CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
+const UPDATE_RETRY_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const UPDATE_STATE_FILE: &str = "state.json";
 const CHECKSUMS_ASSET_NAME: &str = "SHA256SUMS";
 const PROXY_ENV_KEYS: &[&str] = &["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"];
@@ -39,9 +41,6 @@ const DISTRIBUTION: Option<&str> = option_env!("SPOTLIT_DISTRIBUTION");
 const APPLY_UPDATE_FLAG: &str = "--apply-update";
 
 pub(crate) const RELEASES_URL: &str = "https://github.com/oksyd/spotlit/releases/latest";
-
-static GITHUB_CLIENT: OnceLock<std::result::Result<Client, String>> = OnceLock::new();
-static GITHUB_DOWNLOAD_CLIENT: OnceLock<std::result::Result<Client, String>> = OnceLock::new();
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum UpdateCheck {
@@ -70,6 +69,8 @@ pub(crate) struct ReleaseInfo {
 pub(crate) struct PreparedUpdate {
     pub(crate) version: Version,
     package_path: PathBuf,
+    size: u64,
+    sha256: String,
     #[cfg(windows)]
     archive_root: String,
 }
@@ -77,7 +78,9 @@ pub(crate) struct PreparedUpdate {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum InstallDisposition {
     #[cfg(target_os = "linux")]
-    ExternalInstaller,
+    Installed,
+    #[cfg(target_os = "linux")]
+    Cancelled,
     #[cfg(windows)]
     Restarting,
 }
@@ -101,6 +104,10 @@ struct ReleaseAsset {
 #[derive(Debug, Default, Deserialize, Serialize)]
 struct UpdateCache {
     last_checked_unix: Option<u64>,
+    #[serde(default)]
+    last_attempt_unix: Option<u64>,
+    #[serde(default)]
+    last_check_failed: bool,
     release: Option<GitHubRelease>,
 }
 
@@ -108,19 +115,18 @@ struct UpdateCache {
 enum PackageTarget {
     #[cfg(target_os = "linux")]
     LinuxDeb,
-    #[cfg(windows)]
+    #[cfg(any(windows, test))]
     WindowsZip,
 }
 
 struct DownloadSpec<'a> {
     package: &'a ReleaseAsset,
     checksums: &'a ReleaseAsset,
-    #[cfg(windows)]
-    archive_root: String,
 }
 
-pub(crate) fn check_for_update() -> Result<UpdateCheck> {
-    let response = github_client()?
+pub(crate) fn check_for_update(proxy: &UpdateProxy) -> Result<UpdateCheck> {
+    let client = build_github_client(false, proxy)?;
+    let response = client
         .get(LATEST_RELEASE_PATH)
         .try_header("User-Agent", USER_AGENT)
         .context("build GitHub release request")?
@@ -146,7 +152,8 @@ pub(crate) fn check_for_update() -> Result<UpdateCheck> {
 pub(crate) fn install_supported() -> bool {
     #[cfg(target_os = "linux")]
     {
-        DISTRIBUTION == Some("github-linux-deb")
+        env::current_exe()
+            .is_ok_and(|executable| supports_debian_installation(DISTRIBUTION, &executable))
     }
 
     #[cfg(windows)]
@@ -168,30 +175,41 @@ pub(crate) fn cached_update_check(update_dir: &Path) -> Result<Option<UpdateChec
         return Ok(None);
     };
     let Some(release) = cache.release else {
-        return Ok(Some(UpdateCheck::NoRelease));
+        return Ok(cache.last_checked_unix.map(|_| UpdateCheck::NoRelease));
     };
     evaluate_release(env!("CARGO_PKG_VERSION"), &release).map(Some)
 }
 
 pub(crate) fn record_check_result(update_dir: &Path, result: &Result<UpdateCheck>) -> Result<()> {
+    record_check_result_at(update_dir, result, unix_now())
+}
+
+fn record_check_result_at(update_dir: &Path, result: &Result<UpdateCheck>, now: u64) -> Result<()> {
     let mut cache = load_cache(update_dir).ok().flatten().unwrap_or_default();
-    cache.last_checked_unix = Some(unix_now());
+    cache.last_attempt_unix = Some(now);
+    cache.last_check_failed = result.is_err();
     if let Ok(check) = result {
+        cache.last_checked_unix = Some(now);
         cache.release = check.release().map(GitHubRelease::from);
     }
     save_cache(update_dir, &cache)
 }
 
-pub(crate) fn download_update(release: &ReleaseInfo, update_dir: &Path) -> Result<PreparedUpdate> {
+pub(crate) fn download_update(
+    release: &ReleaseInfo,
+    update_dir: &Path,
+    proxy: &UpdateProxy,
+) -> Result<PreparedUpdate> {
     ensure!(
         install_supported(),
         "this Spotlit build cannot install updates"
     );
     let spec = download_spec(release, current_package_target())?;
+    let client = build_github_client(true, proxy)?;
     fs::create_dir_all(update_dir)
         .with_context(|| format!("create Spotlit update directory {}", update_dir.display()))?;
 
-    let checksum_bytes = download_asset_bytes(spec.checksums, CHECKSUMS_MAX_BYTES)
+    let checksum_bytes = download_asset_bytes(&client, spec.checksums, CHECKSUMS_MAX_BYTES)
         .context("download release checksums")?;
     verify_downloaded_asset_digest(spec.checksums, &checksum_bytes)?;
     let checksum_text =
@@ -201,14 +219,16 @@ pub(crate) fn download_update(release: &ReleaseInfo, update_dir: &Path) -> Resul
 
     let package_path = update_dir.join(&spec.package.name);
     if !existing_package_is_valid(&package_path, spec.package.size, &expected_sha256)? {
-        download_package(spec.package, &package_path, &expected_sha256)?;
+        download_package(&client, spec.package, &package_path, &expected_sha256)?;
     }
 
     Ok(PreparedUpdate {
         version: release.version.clone(),
         package_path,
+        size: spec.package.size,
+        sha256: expected_sha256,
         #[cfg(windows)]
-        archive_root: spec.archive_root,
+        archive_root: expected_windows_archive_root(release),
     })
 }
 
@@ -218,6 +238,22 @@ pub(crate) fn install_prepared_update(update: &PreparedUpdate) -> Result<Install
         install_supported(),
         "this Spotlit build cannot install updates"
     );
+    install_debian_update_with(update, |command| command.output())
+}
+
+#[cfg(target_os = "linux")]
+fn supports_debian_installation(distribution: Option<&str>, executable: &Path) -> bool {
+    distribution == Some("github-linux-deb")
+        && (executable == Path::new("/usr/bin/spotlit")
+            || executable == Path::new("/usr/bin/spotlit (deleted)"))
+}
+
+#[cfg(target_os = "linux")]
+fn install_debian_update_with(
+    update: &PreparedUpdate,
+    mut run: impl FnMut(&mut Command) -> std::io::Result<std::process::Output>,
+) -> Result<InstallDisposition> {
+    validate_prepared_update(update)?;
     ensure!(
         update
             .package_path
@@ -225,24 +261,92 @@ pub(crate) fn install_prepared_update(update: &PreparedUpdate) -> Result<Install
             .is_some_and(|value| value == "deb"),
         "the prepared update is not a Debian package"
     );
+    let package_path =
+        fs::canonicalize(&update.package_path).context("resolve Debian update path")?;
+    let version = update.version.to_string().replacen('-', "~", 1);
+    let expected = format!("spotlit\n{version}\namd64");
+    let package = run(Command::new("/usr/bin/dpkg-deb")
+        .arg("--show")
+        .arg("--showformat=${Package}\\n${Version}\\n${Architecture}")
+        .arg(&package_path)
+        .stdin(Stdio::null()))
+    .context("inspect Debian update package")?;
     ensure!(
-        update.package_path.is_file(),
-        "the prepared update no longer exists"
+        package.status.success(),
+        "could not inspect Debian update package: {}",
+        String::from_utf8_lossy(&package.stderr).trim()
+    );
+    ensure!(
+        String::from_utf8_lossy(&package.stdout).trim() == expected,
+        "Debian update package identity does not match the release"
     );
 
-    Command::new("xdg-open")
-        .arg(&update.package_path)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .with_context(|| {
-            format!(
-                "open {} with the system installer",
-                update.package_path.display()
-            )
-        })?;
-    Ok(InstallDisposition::ExternalInstaller)
+    let mut query = Command::new("/usr/bin/dpkg-query");
+    query
+        .args([
+            "--show",
+            "--showformat=${Package}\\n${Version}\\n${Architecture}\\n${db:Status-Status}",
+            "spotlit",
+        ])
+        .stdin(Stdio::null());
+    let current = run(&mut query).context("inspect installed Spotlit package")?;
+    let current_identity =
+        String::from_utf8(current.stdout).context("read installed Spotlit package identity")?;
+    let fields = current_identity.lines().collect::<Vec<_>>();
+    ensure!(
+        current.status.success()
+            && matches!(fields.as_slice(), ["spotlit", _, "amd64", "installed"]),
+        "this Spotlit executable is not managed by the Debian package manager"
+    );
+    if fields[1] == version {
+        return Ok(InstallDisposition::Installed);
+    }
+
+    let output = run(Command::new("/usr/bin/pkexec")
+        .arg("--disable-internal-agent")
+        .arg("/usr/bin/apt-get")
+        .args([
+            "--assume-yes",
+            "--no-install-recommends",
+            "--no-remove",
+            "install",
+        ])
+        .arg(&package_path)
+        .stdin(Stdio::null()))
+    .context("start authorized Debian update installation")?;
+    if output.status.code() == Some(126) {
+        return Ok(InstallDisposition::Cancelled);
+    }
+    ensure!(
+        output.status.success(),
+        "Debian update installation failed ({}): {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
+
+    let installed = run(&mut query).context("verify installed Spotlit version")?;
+    ensure!(
+        installed.status.success()
+            && String::from_utf8_lossy(&installed.stdout).trim()
+                == format!("{expected}\ninstalled"),
+        "the installed Spotlit version does not match the update"
+    );
+    Ok(InstallDisposition::Installed)
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn restart_installed_update() -> Result<()> {
+    use std::os::unix::process::CommandExt;
+
+    Err(Command::new("/usr/bin/spotlit").exec()).context("restart updated Spotlit")
+}
+
+pub(crate) fn validate_prepared_update(update: &PreparedUpdate) -> Result<()> {
+    ensure!(
+        existing_package_is_valid(&update.package_path, update.size, &update.sha256)?,
+        "the prepared update is missing or changed; download it again"
+    );
+    Ok(())
 }
 
 #[cfg(windows)]
@@ -251,13 +355,14 @@ pub(crate) fn install_prepared_update(update: &PreparedUpdate) -> Result<Install
         install_supported(),
         "this Spotlit build cannot install updates"
     );
+    validate_prepared_update(update)?;
     let current_exe = env::current_exe().context("resolve current Spotlit executable")?;
     let update_dir = update
         .package_path
         .parent()
         .context("prepared update has no parent directory")?;
     let staged_dir = update_dir.join(format!("staged-{}", update.version));
-    extract_windows_package(update, &staged_dir)?;
+    extract_windows_package(&update.package_path, &update.archive_root, &staged_dir)?;
 
     let staged_exe = staged_dir.join("spotlit.exe");
     ensure!(
@@ -398,19 +503,14 @@ fn download_spec(release: &ReleaseInfo, target: PackageTarget) -> Result<Downloa
         "release package has an invalid size"
     );
 
-    Ok(DownloadSpec {
-        package,
-        checksums,
-        #[cfg(windows)]
-        archive_root: expected_windows_archive_root(release),
-    })
+    Ok(DownloadSpec { package, checksums })
 }
 
 fn expected_package_name(release: &ReleaseInfo, target: PackageTarget) -> String {
     match target {
         #[cfg(target_os = "linux")]
         PackageTarget::LinuxDeb => format!("spotlit_{}_amd64.deb", release.version),
-        #[cfg(windows)]
+        #[cfg(any(windows, test))]
         PackageTarget::WindowsZip => format!(
             "{}-x86_64-pc-windows-msvc.zip",
             expected_windows_archive_root(release)
@@ -418,7 +518,7 @@ fn expected_package_name(release: &ReleaseInfo, target: PackageTarget) -> String
     }
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 fn expected_windows_archive_root(release: &ReleaseInfo) -> String {
     format!("spotlit-{}", release.tag_name)
 }
@@ -477,9 +577,13 @@ fn verify_downloaded_asset_digest(asset: &ReleaseAsset, bytes: &[u8]) -> Result<
     Ok(())
 }
 
-fn download_asset_bytes(asset: &ReleaseAsset, max_bytes: usize) -> Result<Vec<u8>> {
+fn download_asset_bytes(
+    client: &Client,
+    asset: &ReleaseAsset,
+    max_bytes: usize,
+) -> Result<Vec<u8>> {
     ensure!(asset.size <= max_bytes as u64, "release asset is too large");
-    let response = github_download_client()?
+    let response = client
         .get(format!("{RELEASE_ASSET_PATH_PREFIX}{}", asset.id))
         .try_header("User-Agent", USER_AGENT)
         .context("build GitHub asset request")?
@@ -521,7 +625,12 @@ fn existing_package_is_valid(
     Ok(hash_file(path)? == expected_sha256)
 }
 
-fn download_package(asset: &ReleaseAsset, destination: &Path, expected_sha256: &str) -> Result<()> {
+fn download_package(
+    client: &Client,
+    asset: &ReleaseAsset,
+    destination: &Path,
+    expected_sha256: &str,
+) -> Result<()> {
     let part_path = destination.with_extension(format!(
         "{}.part",
         destination
@@ -532,7 +641,7 @@ fn download_package(asset: &ReleaseAsset, destination: &Path, expected_sha256: &
     remove_file_if_exists(&part_path)?;
 
     let result = (|| {
-        let mut response = github_download_client()?
+        let mut response = client
             .get(format!("{RELEASE_ASSET_PATH_PREFIX}{}", asset.id))
             .try_header("User-Agent", USER_AGENT)
             .context("build GitHub package request")?
@@ -629,10 +738,17 @@ fn automatic_check_due_at(update_dir: &Path, now: u64) -> Result<bool> {
     let Some(cache) = load_cache(update_dir)? else {
         return Ok(true);
     };
-    let Some(last_checked) = cache.last_checked_unix else {
+    let (last_check, interval) = if cache.last_check_failed {
+        (cache.last_attempt_unix, UPDATE_RETRY_INTERVAL)
+    } else {
+        (cache.last_checked_unix, UPDATE_CHECK_INTERVAL)
+    };
+    let Some(last_checked) = last_check else {
         return Ok(true);
     };
-    Ok(now.saturating_sub(last_checked) >= UPDATE_CHECK_INTERVAL.as_secs())
+    Ok(now
+        .checked_sub(last_checked)
+        .is_none_or(|elapsed| elapsed >= interval.as_secs()))
 }
 
 fn load_cache(update_dir: &Path) -> Result<Option<UpdateCache>> {
@@ -681,21 +797,7 @@ fn remove_file_if_exists(path: &Path) -> Result<()> {
     }
 }
 
-fn github_client() -> Result<&'static Client> {
-    GITHUB_CLIENT
-        .get_or_init(|| build_github_client(false))
-        .as_ref()
-        .map_err(|error| anyhow!("initialize GitHub HTTP client: {error}"))
-}
-
-fn github_download_client() -> Result<&'static Client> {
-    GITHUB_DOWNLOAD_CLIENT
-        .get_or_init(|| build_github_client(true))
-        .as_ref()
-        .map_err(|error| anyhow!("initialize GitHub download client: {error}"))
-}
-
-fn build_github_client(download: bool) -> std::result::Result<Client, String> {
+fn build_github_client(download: bool, proxy: &UpdateProxy) -> Result<Client> {
     let builder = Client::builder(GITHUB_API_HOST)
         .client_name(if download {
             "spotlit-update-download"
@@ -712,23 +814,52 @@ fn build_github_client(download: bool) -> std::result::Result<Client, String> {
         .redirect_policy(RedirectPolicy::limited(5))
         .max_response_body_bytes(RELEASE_METADATA_MAX_BYTES);
 
-    configure_proxy(builder)?
+    configure_proxy(builder, proxy)?
         .build()
-        .map_err(|error| error.to_string())
+        .context("initialize GitHub client")
 }
 
-fn configure_proxy(builder: ClientBuilder) -> std::result::Result<ClientBuilder, String> {
-    let Some(proxy_url) = PROXY_ENV_KEYS
-        .iter()
-        .filter_map(|name| env::var(name).ok())
-        .find(|value| !value.trim().is_empty())
-    else {
+pub(crate) fn parse_update_proxy(mode: &str, url: &str) -> Result<UpdateProxy> {
+    let mode = match mode {
+        "environment" => UpdateProxyMode::Environment,
+        "direct" => UpdateProxyMode::Direct,
+        "custom" => UpdateProxyMode::Custom,
+        _ => anyhow::bail!("Invalid proxy mode"),
+    };
+    let proxy = UpdateProxy {
+        mode,
+        url: url.to_string(),
+    };
+    if mode == UpdateProxyMode::Custom {
+        // Building validates the URI without making a network request.
+        build_github_client(false, &proxy).map_err(|_| anyhow!("Invalid HTTP proxy address"))?;
+    }
+    Ok(proxy)
+}
+
+fn proxy_url(
+    proxy: &UpdateProxy,
+    mut env_var: impl FnMut(&str) -> Option<String>,
+) -> Option<String> {
+    match proxy.mode {
+        UpdateProxyMode::Environment => PROXY_ENV_KEYS
+            .iter()
+            .filter_map(|name| env_var(name))
+            .map(|value| value.trim().to_string())
+            .find(|value| !value.is_empty()),
+        UpdateProxyMode::Direct => None,
+        UpdateProxyMode::Custom => Some(proxy.url.trim().to_string()),
+    }
+}
+
+fn configure_proxy(builder: ClientBuilder, proxy: &UpdateProxy) -> Result<ClientBuilder> {
+    let Some(proxy_url) = proxy_url(proxy, |name| env::var(name).ok()) else {
         return Ok(builder);
     };
 
     let proxy_uri = proxy_url
         .parse()
-        .map_err(|error| format!("parse GitHub proxy URI from environment: {error}"))?;
+        .map_err(|_| anyhow!("Invalid HTTP proxy address"))?;
     Ok(builder.http_proxy(proxy_uri))
 }
 
@@ -762,8 +893,12 @@ fn parse_apply_update_options(args: &[OsString]) -> Result<ApplyUpdateOptions> {
     })
 }
 
-#[cfg(windows)]
-fn extract_windows_package(update: &PreparedUpdate, staged_dir: &Path) -> Result<()> {
+#[cfg(any(windows, test))]
+fn extract_windows_package(
+    package_path: &Path,
+    archive_root: &str,
+    staged_dir: &Path,
+) -> Result<()> {
     use zip::ZipArchive;
 
     if staged_dir.exists() {
@@ -773,8 +908,8 @@ fn extract_windows_package(update: &PreparedUpdate, staged_dir: &Path) -> Result
     fs::create_dir_all(staged_dir)
         .with_context(|| format!("create update staging {}", staged_dir.display()))?;
 
-    let file = File::open(&update.package_path)
-        .with_context(|| format!("open update archive {}", update.package_path.display()))?;
+    let file = File::open(package_path)
+        .with_context(|| format!("open update archive {}", package_path.display()))?;
     let mut archive = ZipArchive::new(file).context("read update ZIP archive")?;
     ensure!(
         archive.len() <= 16,
@@ -796,7 +931,7 @@ fn extract_windows_package(update: &PreparedUpdate, staged_dir: &Path) -> Result
             .enclosed_name()
             .ok_or_else(|| anyhow!("update archive contains an unsafe path"))?;
         let relative = enclosed
-            .strip_prefix(&update.archive_root)
+            .strip_prefix(archive_root)
             .context("update archive has an unexpected root directory")?;
         if relative.as_os_str().is_empty() || entry.is_dir() {
             continue;
@@ -913,13 +1048,14 @@ fn write_update_failure(staged_dir: &Path, error: &anyhow::Error) {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::{fs, io::Write, path::PathBuf};
 
     use super::{
         GitHubRelease, PackageTarget, ReleaseAsset, UpdateCache, UpdateCheck,
         automatic_check_due_at, bytes_to_lower_hex, checksum_for_asset, download_spec,
-        evaluate_release, load_cache, parse_release_tag, record_check_result,
-        release_response_has_body, save_cache, verify_downloaded_asset_digest,
+        evaluate_release, expected_windows_archive_root, extract_windows_package, load_cache,
+        parse_release_tag, record_check_result, record_check_result_at, release_response_has_body,
+        save_cache, verify_downloaded_asset_digest,
     };
     use sha2::{Digest, Sha256};
 
@@ -936,6 +1072,126 @@ mod tests {
             name: name.to_string(),
             size,
             digest: None,
+        }
+    }
+
+    #[test]
+    fn update_proxy_modes_resolve_without_changing_the_environment() {
+        use crate::core::{UpdateProxy, UpdateProxyMode};
+
+        let environment = UpdateProxy::default();
+        assert_eq!(
+            super::proxy_url(&environment, |name| match name {
+                "HTTPS_PROXY" => Some("  ".to_string()),
+                "https_proxy" => Some(" http://localhost:7890 ".to_string()),
+                "HTTP_PROXY" => Some("http://localhost:8080".to_string()),
+                _ => None,
+            }),
+            Some("http://localhost:7890".to_string())
+        );
+        assert_eq!(super::proxy_url(&environment, |_| None), None);
+
+        for mode in [UpdateProxyMode::Direct, UpdateProxyMode::Custom] {
+            let proxy = UpdateProxy {
+                mode,
+                url: " http://127.0.0.1:7890 ".to_string(),
+            };
+            let actual = super::proxy_url(&proxy, |_| panic!("must ignore environment proxies"));
+            assert_eq!(
+                actual,
+                (mode == UpdateProxyMode::Custom).then(|| proxy.url.trim().to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn update_proxy_addresses_are_validated_before_saving() {
+        for url in [
+            "http://127.0.0.1:7890",
+            "http://localhost:8080/",
+            "http://[::1]:7890",
+        ] {
+            assert!(super::parse_update_proxy("custom", url).is_ok(), "{url}");
+        }
+        for url in [
+            "",
+            "localhost:7890",
+            "socks5://127.0.0.1:1080",
+            "https://localhost:7890",
+            "http://localhost:bad",
+            "http://localhost:99999",
+            "http://localhost:8080/path",
+            "http://localhost:8080?token=secret",
+        ] {
+            assert_eq!(
+                super::parse_update_proxy("custom", url)
+                    .unwrap_err()
+                    .to_string(),
+                "Invalid HTTP proxy address",
+                "{url}"
+            );
+        }
+        assert!(super::parse_update_proxy("unknown", "").is_err());
+        assert_eq!(
+            super::parse_update_proxy("custom", " http://localhost:7890 ")
+                .unwrap()
+                .url,
+            " http://localhost:7890 "
+        );
+        assert!(super::parse_update_proxy("direct", "").is_ok());
+    }
+
+    #[test]
+    fn checks_and_asset_downloads_use_the_new_proxy_on_each_operation() {
+        use std::{
+            io::{BufRead, BufReader},
+            net::TcpListener,
+            sync::mpsc,
+            thread,
+            time::{Duration, Instant},
+        };
+
+        for download in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let url = format!("http://{}", listener.local_addr().unwrap());
+            let (sent, received) = mpsc::channel();
+            let server = thread::spawn(move || {
+                let deadline = Instant::now() + Duration::from_secs(5);
+                loop {
+                    match listener.accept() {
+                        Ok((mut stream, _)) => {
+                            stream
+                                .set_read_timeout(Some(Duration::from_secs(2)))
+                                .unwrap();
+                            let mut request = String::new();
+                            BufReader::new(&mut stream).read_line(&mut request).unwrap();
+                            sent.send(request).unwrap();
+                            stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                            return;
+                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(Instant::now() < deadline, "proxy was not contacted");
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("accept proxy connection: {error}"),
+                    }
+                }
+            });
+            let proxy = super::parse_update_proxy("custom", &url).unwrap();
+            if download {
+                let client = super::build_github_client(true, &proxy).unwrap();
+                assert!(
+                    super::download_asset_bytes(&client, &asset(1, "SHA256SUMS", 1), 64).is_err()
+                );
+            } else {
+                assert!(super::check_for_update(&proxy).is_err());
+            }
+            server.join().unwrap();
+            assert_eq!(
+                received.recv_timeout(Duration::from_secs(1)).unwrap(),
+                "CONNECT api.github.com:443 HTTP/1.1\r\n"
+            );
         }
     }
 
@@ -1031,6 +1287,7 @@ mod tests {
             &UpdateCache {
                 last_checked_unix: Some(1_000),
                 release: None,
+                ..UpdateCache::default()
             },
         )
         .unwrap();
@@ -1055,11 +1312,366 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[test]
+    fn failed_checks_retry_without_overwriting_the_last_successful_release() {
+        let directory = TestDirectory::new("update-retry");
+        let check = evaluate_release("0.1.0", &release("0.2.0", Vec::new())).unwrap();
+        record_check_result_at(&directory.0, &Ok(check), 1_000).unwrap();
+        record_check_result_at(&directory.0, &Err(anyhow::anyhow!("offline")), 2_000).unwrap();
+        let cache = load_cache(&directory.0).unwrap().unwrap();
+        assert_eq!(cache.last_checked_unix, Some(1_000));
+        assert_eq!(cache.release.unwrap().tag_name, "0.2.0");
+        assert!(!automatic_check_due_at(&directory.0, 2_001).unwrap());
+        assert!(automatic_check_due_at(&directory.0, 2_000 + 15 * 60).unwrap());
+        record_check_result_at(&directory.0, &Ok(UpdateCheck::NoRelease), 3_000).unwrap();
+        assert!(!automatic_check_due_at(&directory.0, 3_000 + 15 * 60).unwrap());
+        assert!(automatic_check_due_at(&directory.0, 3_000 + 24 * 60 * 60).unwrap());
+    }
+
+    #[test]
+    fn first_failed_check_is_not_cached_as_no_release() {
+        let directory = TestDirectory::new("first-update-failure");
+        record_check_result_at(&directory.0, &Err(anyhow::anyhow!("offline")), 1_000).unwrap();
+        assert!(super::cached_update_check(&directory.0).unwrap().is_none());
+        assert!(automatic_check_due_at(&directory.0, 1_000 + 15 * 60).unwrap());
+    }
+
+    #[test]
+    fn backwards_clock_does_not_suspend_update_checks() {
+        let directory = TestDirectory::new("update-clock");
+        record_check_result_at(&directory.0, &Ok(UpdateCheck::NoRelease), 2_000).unwrap();
+        assert!(automatic_check_due_at(&directory.0, 1_000).unwrap());
+    }
+
+    #[test]
+    fn github_windows_archive_layout_matches_download_and_extraction() {
+        let directory = TestDirectory::new("windows-update-archive");
+        let github = release(
+            "0.2.0",
+            vec![
+                asset(1, "spotlit-0.2.0-x86_64-pc-windows-msvc.zip", 1_024),
+                asset(2, "SHA256SUMS", 256),
+            ],
+        );
+        let UpdateCheck::Available { release } = evaluate_release("0.1.0", &github).unwrap() else {
+            panic!("expected update");
+        };
+        let spec = download_spec(&release, PackageTarget::WindowsZip).unwrap();
+        let root = expected_windows_archive_root(&release);
+        assert_eq!(root, "spotlit-0.2.0");
+        let archive = directory.0.join(&spec.package.name);
+        let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        for name in [
+            "spotlit.exe",
+            "README.md",
+            "LICENSE",
+            "THIRD-PARTY-LICENSES.txt",
+        ] {
+            zip.start_file(
+                format!("spotlit-0.2.0/{name}"),
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+            zip.write_all(b"fixture").unwrap();
+        }
+        zip.finish().unwrap();
+        let staged = directory.0.join("staged");
+        extract_windows_package(&archive, &root, &staged).unwrap();
+        assert_eq!(fs::read(staged.join("spotlit.exe")).unwrap(), b"fixture");
+        assert!(staged.join("THIRD-PARTY-LICENSES.txt").is_file());
+    }
+
+    #[test]
+    fn windows_update_rejects_wrong_roots_traversal_and_unexpected_files() {
+        let directory = TestDirectory::new("unsafe-update-archive");
+        let root = "spotlit-0.2.0";
+        for entry in [
+            "wrong-root/spotlit.exe".to_string(),
+            format!("{root}/../spotlit.exe"),
+            format!("{root}/unexpected.exe"),
+        ] {
+            let archive = directory.0.join("update.zip");
+            let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+            zip.start_file(entry, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(b"fixture").unwrap();
+            zip.finish().unwrap();
+            assert!(extract_windows_package(&archive, root, &directory.0.join("staged")).is_err());
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "requires a release archive built by the release workflow"]
+    fn windows_release_archive_matches_updater() {
+        let archive = PathBuf::from(
+            std::env::var_os("SPOTLIT_TEST_WINDOWS_UPDATE_ARCHIVE").expect("release archive path"),
+        );
+        let github = release(env!("CARGO_PKG_VERSION"), Vec::new());
+        let UpdateCheck::Available { release } = evaluate_release("0.0.0", &github).unwrap() else {
+            panic!("expected update");
+        };
+        let directory = TestDirectory::new("real-windows-update-archive");
+        extract_windows_package(
+            &archive,
+            &expected_windows_archive_root(&release),
+            &directory.0.join("staged"),
+        )
+        .unwrap();
+        assert!(
+            fs::metadata(directory.0.join("staged/spotlit.exe"))
+                .unwrap()
+                .len()
+                > 0
+        );
+    }
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new(label: &str) -> Self {
+            let path = temp_root(label);
+            fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    mod debian {
+        use std::{
+            collections::VecDeque,
+            os::unix::process::ExitStatusExt,
+            path::Path,
+            process::{Command, ExitStatus, Output},
+        };
+
+        use super::{TestDirectory, bytes_to_lower_hex, fs};
+        use crate::update::{
+            InstallDisposition, PreparedUpdate, install_debian_update_with,
+            supports_debian_installation,
+        };
+        use sha2::{Digest, Sha256};
+
+        fn output(code: i32, stdout: &str) -> Output {
+            Output {
+                status: ExitStatus::from_raw(code << 8),
+                stdout: stdout.as_bytes().to_vec(),
+                stderr: b"fixture diagnostic".to_vec(),
+            }
+        }
+
+        fn prepared(directory: &TestDirectory) -> PreparedUpdate {
+            let package_path = directory.0.join("spotlit_0.2.0_amd64.deb");
+            if !package_path.exists() {
+                fs::write(&package_path, b"fixture package").unwrap();
+            }
+            let bytes = fs::read(&package_path).unwrap();
+            PreparedUpdate {
+                version: "0.2.0".parse().unwrap(),
+                package_path,
+                size: bytes.len() as u64,
+                sha256: bytes_to_lower_hex(Sha256::digest(bytes).as_ref()),
+            }
+        }
+
+        fn simulate(
+            update: &PreparedUpdate,
+            responses: Vec<Output>,
+        ) -> anyhow::Result<InstallDisposition> {
+            let mut responses = VecDeque::from(responses);
+            let mut calls = 0;
+            let result = install_debian_update_with(update, |command| {
+                let programs = [
+                    "/usr/bin/dpkg-deb",
+                    "/usr/bin/dpkg-query",
+                    "/usr/bin/pkexec",
+                    "/usr/bin/dpkg-query",
+                ];
+                assert_eq!(command.get_program(), programs[calls]);
+                if calls == 1 {
+                    calls += 1;
+                    return Ok(output(0, "spotlit\n0.1.0\namd64\ninstalled"));
+                }
+                if calls == 2 {
+                    let args = command.get_args().collect::<Vec<_>>();
+                    assert_eq!(
+                        &args[..6],
+                        [
+                            "--disable-internal-agent",
+                            "/usr/bin/apt-get",
+                            "--assume-yes",
+                            "--no-install-recommends",
+                            "--no-remove",
+                            "install"
+                        ]
+                    );
+                    assert_eq!(args[6], update.package_path.as_os_str());
+                }
+                calls += 1;
+                Ok(responses.pop_front().expect("unexpected system command"))
+            });
+            assert!(responses.is_empty(), "expected command was not reached");
+            result
+        }
+
+        #[test]
+        fn portable_and_development_builds_never_install_debian_updates() {
+            for distribution in [
+                None,
+                Some("github-linux-portable"),
+                Some("github-windows-portable"),
+            ] {
+                assert!(!supports_debian_installation(
+                    distribution,
+                    Path::new("/usr/bin/spotlit")
+                ));
+            }
+            assert!(!supports_debian_installation(
+                Some("github-linux-deb"),
+                Path::new("/home/user/spotlit/spotlit")
+            ));
+            assert!(supports_debian_installation(
+                Some("github-linux-deb"),
+                Path::new("/usr/bin/spotlit")
+            ));
+            assert!(supports_debian_installation(
+                Some("github-linux-deb"),
+                Path::new("/usr/bin/spotlit (deleted)")
+            ));
+        }
+
+        #[test]
+        fn installation_success_requires_a_confirmed_installed_version() {
+            let directory = TestDirectory::new("debian-update space");
+            let update = prepared(&directory);
+            assert_eq!(
+                simulate(
+                    &update,
+                    vec![
+                        output(0, "spotlit\n0.2.0\namd64"),
+                        output(0, ""),
+                        output(0, "spotlit\n0.2.0\namd64\ninstalled")
+                    ]
+                )
+                .unwrap(),
+                InstallDisposition::Installed
+            );
+            assert!(
+                simulate(
+                    &update,
+                    vec![
+                        output(0, "spotlit\n0.2.0\namd64"),
+                        output(0, ""),
+                        output(0, "spotlit\n0.1.0\namd64\ninstalled")
+                    ]
+                )
+                .is_err()
+            );
+        }
+
+        #[test]
+        fn authorization_cancel_and_installation_errors_are_distinct() {
+            let directory = TestDirectory::new("debian-cancel");
+            let update = prepared(&directory);
+            assert_eq!(
+                simulate(
+                    &update,
+                    vec![output(0, "spotlit\n0.2.0\namd64"), output(126, "")]
+                )
+                .unwrap(),
+                InstallDisposition::Cancelled
+            );
+            for code in [127, 100] {
+                let error = simulate(
+                    &update,
+                    vec![output(0, "spotlit\n0.2.0\namd64"), output(code, "")],
+                )
+                .unwrap_err();
+                assert!(error.to_string().contains("fixture diagnostic"));
+            }
+        }
+
+        #[test]
+        fn wrong_package_identity_never_reaches_authorization() {
+            let directory = TestDirectory::new("debian-identity");
+            let update = prepared(&directory);
+            for identity in [
+                "other-app\n0.2.0\namd64",
+                "spotlit\n0.1.0\namd64",
+                "spotlit\n0.2.0\narm64",
+            ] {
+                assert!(simulate(&update, vec![output(0, identity)]).is_err());
+            }
+        }
+
+        #[test]
+        fn missing_or_changed_packages_never_run_system_commands() {
+            let directory = TestDirectory::new("debian-integrity");
+            let update = prepared(&directory);
+            let mut changed = fs::read(&update.package_path).unwrap();
+            changed[0] ^= 1;
+            fs::write(&update.package_path, changed).unwrap();
+            assert!(simulate(&update, Vec::new()).is_err());
+            fs::remove_file(&update.package_path).unwrap();
+            assert!(simulate(&update, Vec::new()).is_err());
+        }
+
+        #[test]
+        fn real_debian_metadata_is_accepted_without_installing_the_fixture() {
+            let directory = TestDirectory::new("real-debian-metadata");
+            let package_root = directory.0.join("package");
+            fs::create_dir_all(package_root.join("DEBIAN")).unwrap();
+            fs::write(package_root.join("DEBIAN/control"), "Package: spotlit\nVersion: 0.2.0\nArchitecture: amd64\nMaintainer: Test <test@example.invalid>\nDescription: updater test fixture\n").unwrap();
+            let package = directory.0.join("spotlit_0.2.0_amd64.deb");
+            let built = Command::new("dpkg-deb")
+                .arg("--build")
+                .arg(package_root)
+                .arg(package)
+                .output()
+                .unwrap();
+            assert!(
+                built.status.success(),
+                "{}",
+                String::from_utf8_lossy(&built.stderr)
+            );
+            let update = prepared(&directory);
+            let mut calls = 0;
+            let result = install_debian_update_with(&update, |command| {
+                calls += 1;
+                match command.get_program().to_str().unwrap() {
+                    "/usr/bin/dpkg-deb" => command.output(),
+                    "/usr/bin/pkexec" => Ok(output(0, "")),
+                    "/usr/bin/dpkg-query" => Ok(output(
+                        0,
+                        if calls == 2 {
+                            "spotlit\n0.1.0\namd64\ninstalled"
+                        } else {
+                            "spotlit\n0.2.0\namd64\ninstalled"
+                        },
+                    )),
+                    other => panic!("unexpected command: {other}"),
+                }
+            })
+            .unwrap();
+            assert_eq!(result, InstallDisposition::Installed);
+            assert_eq!(calls, 4);
+        }
+    }
+
     fn temp_root(label: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
             "spotlit-{label}-{}-{}",
             std::process::id(),
-            super::unix_now()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ))
     }
 }

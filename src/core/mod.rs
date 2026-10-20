@@ -18,7 +18,8 @@ mod thumbnail;
 #[cfg(target_os = "linux")]
 pub(crate) use config::write_json_file;
 pub use config::{
-    AppConfig, ConfigStore, LanguageMode, ThemeMode, WallpaperSource, normalized_history_limit,
+    AppConfig, ConfigStore, LanguageMode, ThemeMode, UpdateProxy, UpdateProxyMode, WallpaperSource,
+    normalized_history_limit,
 };
 pub use engine::SpotlitCore;
 pub use error::{Result, SpotlitError};

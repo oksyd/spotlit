@@ -130,7 +130,7 @@ Priority: optional
 Architecture: amd64
 Installed-Size: ${installed_size}
 Maintainer: oksyd <oksyd@users.noreply.github.com>
-Depends: ${shlibdeps}, libglib2.0-bin, libx11-6, libxkbcommon0, libwayland-client0, xdg-utils, zenity
+Depends: ${shlibdeps}, apt, pkexec, libglib2.0-bin, libx11-6, libxkbcommon0, libwayland-client0, xdg-utils, zenity
 Recommends: gnome-shell
 Homepage: https://github.com/oksyd/spotlit
 Description: wallpaper companion for Windows Spotlight and Bing

@@ -805,8 +805,14 @@ msgstr "Bereit zur Installation von v{}"
 msgid "Preparing installation"
 msgstr "Installation wird vorbereitet"
 
-msgid "System installer opened for v{}"
-msgstr "Systeminstallationsprogramm für v{} geöffnet"
+msgid "Restart to use v{}"
+msgstr "Neustart für v{}"
+
+msgid "Restart"
+msgstr "Neustart"
+
+msgid "Restart Spotlit"
+msgstr "Spotlit neu starten"
 
 msgid "Download failed"
 msgstr "Download fehlgeschlagen"
@@ -832,11 +838,50 @@ msgstr "Update-Download konnte nicht gestartet werden"
 msgid "Update install could not be started"
 msgstr "Update-Installation konnte nicht gestartet werden"
 
-msgid "Opened update in the system installer"
-msgstr "Update im Systeminstallationsprogramm geöffnet"
+msgid "Update installed; restart Spotlit to finish"
+msgstr "Update installiert; zum Abschließen Spotlit neu starten"
+
+msgid "Update installation cancelled"
+msgstr "Update-Installation abgebrochen"
+
+msgid "Restart failed; close and reopen Spotlit"
+msgstr "Neustart fehlgeschlagen; Spotlit schließen und erneut öffnen"
 
 msgid "Update download failed: {}"
 msgstr "Update-Download fehlgeschlagen: {}"
 
 msgid "Update install failed: {}"
 msgstr "Update-Installation fehlgeschlagen: {}"
+
+msgid "Update Proxy"
+msgstr "Update-Proxy"
+
+msgid "Environment"
+msgstr "Umgebungsvariablen"
+
+msgid "Direct"
+msgstr "Direkt"
+
+msgid "HTTP Proxy"
+msgstr "HTTP-Proxy"
+
+msgid "Address"
+msgstr "Adresse"
+
+msgid "HTTP Proxy Address"
+msgstr "HTTP-Proxy-Adresse"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Save Update Proxy"
+msgstr "Update-Proxy speichern"
+
+msgid "Update proxy saved"
+msgstr "Update-Proxy gespeichert"
+
+msgid "Invalid HTTP proxy address"
+msgstr "Ungültige HTTP-Proxy-Adresse"
+
+msgid "Invalid proxy mode"
+msgstr "Ungültiger Proxy-Modus"

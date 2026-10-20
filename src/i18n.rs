@@ -119,7 +119,7 @@ pub(crate) fn message(app: &MainWindow, value: &str) -> SharedString {
         return i18n.invoke_update_install_failed(error.into());
     }
     if let Some(error) = value.strip_prefix("Failed: ") {
-        return i18n.invoke_failed(error.into());
+        return i18n.invoke_failed(i18n.invoke_message(error.into()));
     }
     if let Some(count) = value
         .strip_prefix("Cache cleaned: ")

@@ -33,6 +33,8 @@ slint::slint! {
         lock-screen-apply-available: false;
         update-status-text: root.snapshot-update-status;
         update-action-kind: root.snapshot-update-action;
+        update-proxy-mode: root.snapshot-proxy-mode;
+        update-proxy-url: root.snapshot-proxy-url;
 
         in-out property <bool> snapshot-show-settings: false;
         in-out property <string> snapshot-settings-page: "wallpaper";
@@ -44,6 +46,8 @@ slint::slint! {
         in-out property <length> snapshot-height: 680px;
         in-out property <string> snapshot-update-status: "Up to date (v0.1.0)";
         in-out property <string> snapshot-update-action: "check";
+        in-out property <string> snapshot-proxy-mode: "environment";
+        in-out property <string> snapshot-proxy-url: "";
 
         show-settings: root.snapshot-show-settings;
         settings-page: root.snapshot-settings-page;
@@ -62,6 +66,7 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
         .build()?;
     assert_bundled_translations_preserve_wallpaper_metadata()?;
     assert_manual_apply_targets_preview(&runtime)?;
+    assert_update_proxy_controls(&runtime)?;
 
     let ui = SnapshotHarness::new()?;
     runtime.set_size(ui.window(), SNAPSHOT_SIZE, 1.0)?;
@@ -101,8 +106,50 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
                 mode,
                 &store,
             )?;
+            ui.set_snapshot_update_status("Ready to install v0.2.0".into());
+            ui.set_snapshot_update_action("install".into());
+            check_snapshot(
+                &runtime,
+                &ui,
+                "settings/app-ready-light",
+                SNAPSHOT_SIZE,
+                mode,
+                &store,
+            )?;
+            ui.set_snapshot_update_status("Restart to use v0.2.0".into());
+            ui.set_snapshot_update_action("restart".into());
+            check_snapshot(
+                &runtime,
+                &ui,
+                "settings/app-installed-light",
+                SNAPSHOT_SIZE,
+                mode,
+                &store,
+            )?;
             ui.set_snapshot_update_status("Up to date (v0.1.0)".into());
             ui.set_snapshot_update_action("check".into());
+            ui.set_snapshot_proxy_mode("custom".into());
+            ui.set_snapshot_proxy_url("http://127.0.0.1:7890".into());
+            check_snapshot(
+                &runtime,
+                &ui,
+                "settings/app-proxy-light",
+                SNAPSHOT_SIZE,
+                mode,
+                &store,
+            )?;
+            ui.set_snapshot_dark_theme(true);
+            check_snapshot(
+                &runtime,
+                &ui,
+                "settings/app-proxy-dark",
+                SNAPSHOT_SIZE,
+                mode,
+                &store,
+            )?;
+            ui.set_snapshot_dark_theme(false);
+            ui.set_snapshot_proxy_mode("environment".into());
+            ui.set_snapshot_proxy_url("".into());
         }
         if page == "wallpaper" {
             ui.set_snapshot_policy("Library".into());
@@ -154,6 +201,19 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
         mode,
         &store,
     )?;
+    ui.set_snapshot_width(640.0);
+    runtime.set_size(ui.window(), (640, 620), 1.0)?;
+    ui.set_snapshot_settings_page("app".into());
+    ui.set_snapshot_proxy_mode("custom".into());
+    ui.set_snapshot_proxy_url("http://127.0.0.1:7890".into());
+    check_snapshot(
+        &runtime,
+        &ui,
+        "settings/app-proxy-compact-light",
+        (640, 620),
+        mode,
+        &store,
+    )?;
     render_localized_previews(&runtime)?;
     ui.set_snapshot_width(1180.0);
     ui.set_snapshot_height(680.0);
@@ -191,6 +251,70 @@ fn assert_manual_apply_targets_preview(runtime: &SnapshotRuntime) -> Result<(), 
     Ok(())
 }
 
+fn assert_update_proxy_controls(runtime: &SnapshotRuntime) -> Result<(), Box<dyn Error>> {
+    use slint::platform::{Key, WindowEvent};
+
+    let ui = spotlit::MainWindow::new()?;
+    ui.set_show_settings(true);
+    ui.set_settings_page("app".into());
+    ui.set_update_proxy_mode("custom".into());
+    ui.set_update_proxy_url("http://127.0.0.1:7890".into());
+    let saved = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let recorded = saved.clone();
+    ui.on_update_proxy_saved(move |mode, url| recorded.borrow_mut().push((mode, url)));
+    ui.on_update_check_requested(|| panic!("must save edited proxy before checking for updates"));
+    ui.window().show()?;
+    runtime.set_size(ui.window(), SNAPSHOT_SIZE, 1.0)?;
+    runtime.render(ui.window())?;
+
+    // The coordinates are covered by the matching app-proxy visual baseline.
+    click(ui.window(), 700.0, 494.0);
+    ui.window().dispatch_event(WindowEvent::KeyPressed {
+        text: Key::End.into(),
+    });
+    ui.window()
+        .dispatch_event(WindowEvent::KeyPressed { text: "/".into() });
+    runtime.render(ui.window())?;
+    assert!(
+        saved.borrow().is_empty(),
+        "editing must not persist partial addresses"
+    );
+    assert!(!ui.get_settings_save_pending());
+    click(ui.window(), 866.0, 407.0);
+    click(ui.window(), 872.0, 450.0);
+    assert!(ui.get_settings_save_pending());
+    assert_eq!(saved.borrow().len(), 1);
+    assert_eq!(saved.borrow()[0].0, "custom");
+    assert_eq!(saved.borrow()[0].1, "http://127.0.0.1:7890/");
+
+    ui.set_update_proxy_url("http://127.0.0.1:7890/".into());
+    ui.set_settings_save_pending(false);
+    runtime.render(ui.window())?;
+    click(ui.window(), 872.0, 450.0);
+    assert_eq!(
+        saved.borrow().len(),
+        1,
+        "unchanged settings must not be resaved"
+    );
+    ui.window().hide()?;
+    Ok(())
+}
+
+fn click(window: &slint::Window, x: f32, y: f32) {
+    use slint::platform::{PointerEventButton, WindowEvent};
+
+    let position = slint::LogicalPosition::new(x, y);
+    window.dispatch_event(WindowEvent::PointerMoved { position });
+    window.dispatch_event(WindowEvent::PointerPressed {
+        position,
+        button: PointerEventButton::Left,
+    });
+    window.dispatch_event(WindowEvent::PointerReleased {
+        position,
+        button: PointerEventButton::Left,
+    });
+}
+
 fn render_localized_previews(runtime: &SnapshotRuntime) -> Result<(), Box<dyn Error>> {
     for language in ["de", "zh-CN"] {
         slint::select_bundled_translation(language)?;
@@ -207,6 +331,25 @@ fn render_localized_previews(runtime: &SnapshotRuntime) -> Result<(), Box<dyn Er
         runtime.render(ui.window())?.write_png(
             &std::path::Path::new("target/slint-snapshots/settings")
                 .join(format!("wallpaper-{language}.png")),
+        )?;
+        ui.set_settings_page("app".into());
+        ui.set_update_proxy_mode("custom".into());
+        ui.set_update_proxy_url("http://127.0.0.1:7890".into());
+        ui.set_update_status_kind("installed".into());
+        ui.set_update_status_version("0.2.0".into());
+        ui.set_update_action_kind("restart".into());
+        runtime.advance_time(std::time::Duration::from_millis(300))?;
+        assert_eq!(
+            ui.get_update_status_text(),
+            if language == "de" {
+                "Neustart für v0.2.0"
+            } else {
+                "重启以使用 v0.2.0"
+            }
+        );
+        runtime.render(ui.window())?.write_png(
+            &std::path::Path::new("target/slint-snapshots/settings")
+                .join(format!("app-installed-{language}.png")),
         )?;
         ui.window().hide()?;
     }
@@ -232,6 +375,24 @@ fn assert_bundled_translations_preserve_wallpaper_metadata() -> Result<(), Box<d
         "就绪"
     );
     assert_eq!(ui.get_apply_target_text(), "锁屏");
+    ui.set_update_status_kind("installed".into());
+    ui.set_update_status_version("0.2.0".into());
+    assert_eq!(ui.get_update_status_text(), "重启以使用 v0.2.0");
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
+            .invoke_message("Update proxy saved".into()),
+        "更新代理已保存"
+    );
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
+            .invoke_message("Invalid HTTP proxy address".into()),
+        "HTTP 代理地址无效"
+    );
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
+            .invoke_message("Update installation cancelled".into()),
+        "更新安装已取消"
+    );
     assert_eq!(ui.get_current_title(), "Lake Tahoe at Sunrise");
     assert_eq!(
         ui.global::<spotlit::I18n>()
@@ -245,6 +406,7 @@ fn assert_bundled_translations_preserve_wallpaper_metadata() -> Result<(), Box<d
         "Bereit"
     );
     assert_eq!(ui.get_apply_target_text(), "Sperrbildschirm");
+    assert_eq!(ui.get_update_status_text(), "Neustart für v0.2.0");
     assert_eq!(ui.get_current_title(), "Lake Tahoe at Sunrise");
     assert_eq!(
         ui.global::<spotlit::I18n>()

@@ -357,6 +357,16 @@ fn apply_config(
         |value| app.set_language_code(value),
     );
     set_shared_string_if_changed(
+        app.get_update_proxy_mode(),
+        config.update_proxy.mode.code().into(),
+        |value| app.set_update_proxy_mode(value),
+    );
+    set_shared_string_if_changed(
+        app.get_update_proxy_url(),
+        config.update_proxy.url.as_str().into(),
+        |value| app.set_update_proxy_url(value),
+    );
+    set_shared_string_if_changed(
         app.get_history_limit_text(),
         history_limit_label(config).into(),
         |value| app.set_history_limit_text(value),
@@ -1077,6 +1087,7 @@ fn hash_config(config: &AppConfig, hasher: &mut DefaultHasher) {
     config.start_at_login.hash(hasher);
     config.keep_running_in_background.hash(hasher);
     config.automatic_update_checks.hash(hasher);
+    config.update_proxy.hash(hasher);
     hash_language_mode(config.language, hasher);
     config.max_history_wallpapers.hash(hasher);
 }

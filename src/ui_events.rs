@@ -770,6 +770,7 @@ fn is_settings_save_result_message(message: &str) -> bool {
             | "Startup setting saved"
             | "Background setting saved"
             | "Update setting saved"
+            | "Update proxy saved"
             | "Language setting saved"
             | "Theme setting saved"
             | "Auto sync enabled and synced"
@@ -814,6 +815,7 @@ fn apply_command_failure(app: &MainWindow, failure: CommandFailure) {
         }
         Command::SetAutoSync(_)
         | Command::SetAutomaticUpdateChecks(_)
+        | Command::SetUpdateProxy { .. }
         | Command::SetHistoryLimit(_)
         | Command::SetKeepRunningInBackground(_)
         | Command::SetLanguage(_)
@@ -874,6 +876,7 @@ fn command_belongs_to_settings_context(command: &Command) -> bool {
             | Command::OpenReleasePage
             | Command::SetAutoSync(_)
             | Command::SetAutomaticUpdateChecks(_)
+            | Command::SetUpdateProxy { .. }
             | Command::InstallLockScreenIntegration
             | Command::SetHistoryLimit(_)
             | Command::SetKeepRunningInBackground(_)
@@ -1602,6 +1605,7 @@ mod tests {
             "Startup setting saved",
             "Background setting saved",
             "Update setting saved",
+            "Update proxy saved",
             "Language setting saved",
             "Theme setting saved",
             "Auto sync enabled and synced",

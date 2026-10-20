@@ -77,6 +77,51 @@ fn interface_language_is_persisted() -> std::result::Result<(), Box<dyn std::err
 }
 
 #[test]
+fn update_proxy_is_persisted_and_invalid_changes_leave_it_intact()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    use crate::core::{ConfigStore, UpdateProxyMode};
+
+    let fixture = test_worker("worker-update-proxy")?;
+    let store = ConfigStore::new(fixture._root.join("data/config.json"));
+    let event = fixture.worker.handle(Command::SetUpdateProxy {
+        mode: "custom".to_string(),
+        url: " http://127.0.0.1:7890 ".to_string(),
+    });
+    let WorkerEvent::ConfigUpdated(message, settings) = event else {
+        panic!("expected proxy settings update");
+    };
+    assert_eq!(message, "Update proxy saved");
+    assert_eq!(settings.config.update_proxy.mode, UpdateProxyMode::Custom);
+    assert_eq!(settings.config.update_proxy.url, " http://127.0.0.1:7890 ");
+    assert_eq!(store.load_or_default()?, settings.config);
+
+    let event = fixture.worker.handle(Command::SetUpdateProxy {
+        mode: "custom".to_string(),
+        url: "socks5://localhost:1080".to_string(),
+    });
+    let WorkerEvent::Failed(failure) = event else {
+        panic!("expected invalid proxy to fail");
+    };
+    assert_eq!(failure.message, "Invalid HTTP proxy address");
+    assert_eq!(store.load_or_default()?, settings.config);
+
+    for (mode, expected) in [
+        ("direct", UpdateProxyMode::Direct),
+        ("environment", UpdateProxyMode::Environment),
+    ] {
+        let event = fixture.worker.handle(Command::SetUpdateProxy {
+            mode: mode.to_string(),
+            url: settings.config.update_proxy.url.clone(),
+        });
+        assert!(matches!(event, WorkerEvent::ConfigUpdated(_, _)));
+        let saved = store.load_or_default()?;
+        assert_eq!(saved.update_proxy.mode, expected);
+        assert_eq!(saved.update_proxy.url, settings.config.update_proxy.url);
+    }
+    Ok(())
+}
+
+#[test]
 fn loading_snapshot_queries_gnome_integration_without_changing_it()
 -> std::result::Result<(), Box<dyn std::error::Error>> {
     let fixture =

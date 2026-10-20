@@ -805,8 +805,14 @@ msgstr "已准备安装 v{}"
 msgid "Preparing installation"
 msgstr "正在准备安装"
 
-msgid "System installer opened for v{}"
-msgstr "已在系统安装器中打开 v{}"
+msgid "Restart to use v{}"
+msgstr "重启以使用 v{}"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "Restart Spotlit"
+msgstr "重启 Spotlit"
 
 msgid "Download failed"
 msgstr "下载失败"
@@ -832,11 +838,50 @@ msgstr "无法启动更新下载"
 msgid "Update install could not be started"
 msgstr "无法启动更新安装"
 
-msgid "Opened update in the system installer"
-msgstr "已在系统安装器中打开更新"
+msgid "Update installed; restart Spotlit to finish"
+msgstr "更新已安装，重启 Spotlit 后生效"
+
+msgid "Update installation cancelled"
+msgstr "更新安装已取消"
+
+msgid "Restart failed; close and reopen Spotlit"
+msgstr "重启失败，请关闭并重新打开 Spotlit"
 
 msgid "Update download failed: {}"
 msgstr "更新下载失败：{}"
 
 msgid "Update install failed: {}"
 msgstr "更新安装失败：{}"
+
+msgid "Update Proxy"
+msgstr "更新代理"
+
+msgid "Environment"
+msgstr "环境变量"
+
+msgid "Direct"
+msgstr "直连"
+
+msgid "HTTP Proxy"
+msgstr "HTTP 代理"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "HTTP Proxy Address"
+msgstr "HTTP 代理地址"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Save Update Proxy"
+msgstr "保存更新代理"
+
+msgid "Update proxy saved"
+msgstr "更新代理已保存"
+
+msgid "Invalid HTTP proxy address"
+msgstr "HTTP 代理地址无效"
+
+msgid "Invalid proxy mode"
+msgstr "代理模式无效"

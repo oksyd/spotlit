@@ -190,34 +190,6 @@ jobs:
           SPOTLIT_DISTRIBUTION: github-linux-deb
         run: cargo build --release --locked --bin spotlit
 
-      - name: Create and verify Linux archive
-        shell: bash
-        run: |
-          archive="spotlit-${RELEASE_TAG}-x86_64-unknown-linux-gnu"
-          archive_path="target/dist/${archive}.tar.gz"
-          install -Dm755 target/release/spotlit "target/dist/${archive}/spotlit"
-          install -m644 README.md LICENSE target/legal/THIRD-PARTY-LICENSES.txt "target/dist/${archive}/"
-          tar \
-            --sort=name \
-            --mtime="@${SOURCE_DATE_EPOCH}" \
-            --owner=0 \
-            --group=0 \
-            --numeric-owner \
-            -C target/dist \
-            -czf "${archive_path}" \
-            "${archive}"
-          mkdir -p target/repro-check
-          tar \
-            --sort=name \
-            --mtime="@${SOURCE_DATE_EPOCH}" \
-            --owner=0 \
-            --group=0 \
-            --numeric-owner \
-            -C target/dist \
-            -czf "target/repro-check/${archive}.tar.gz" \
-            "${archive}"
-          cmp "${archive_path}" "target/repro-check/${archive}.tar.gz"
-
       - name: Create and verify Debian package reproducibility
         shell: bash
         run: |
@@ -277,6 +249,39 @@ jobs:
               >/dev/null
           lintian --fail-on error "${package}"
           sudo apt-get --simulate install "${PWD}/${package}"
+
+      - name: Build Linux portable binary
+        env:
+          SPOTLIT_DISTRIBUTION: github-linux-portable
+        run: cargo build --release --locked --bin spotlit
+
+      - name: Create and verify Linux archive
+        shell: bash
+        run: |
+          archive="spotlit-${RELEASE_TAG}-x86_64-unknown-linux-gnu"
+          archive_path="target/dist/${archive}.tar.gz"
+          install -Dm755 target/release/spotlit "target/dist/${archive}/spotlit"
+          install -m644 README.md LICENSE target/legal/THIRD-PARTY-LICENSES.txt "target/dist/${archive}/"
+          tar \
+            --sort=name \
+            --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C target/dist \
+            -czf "${archive_path}" \
+            "${archive}"
+          mkdir -p target/repro-check
+          tar \
+            --sort=name \
+            --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C target/dist \
+            -czf "target/repro-check/${archive}.tar.gz" \
+            "${archive}"
+          cmp "${archive_path}" "target/repro-check/${archive}.tar.gz"
 
       - name: Upload Linux packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -392,7 +397,7 @@ jobs:
           }
 
           $archive = "spotlit-$env:RELEASE_TAG-x86_64-pc-windows-msvc"
-          $archiveDirectory = "target/dist/$archive"
+          $archiveDirectory = "target/dist/spotlit-$env:RELEASE_TAG"
           New-Item -ItemType Directory -Force -Path $archiveDirectory | Out-Null
           Copy-Item "target/release/spotlit.exe", "README.md", "LICENSE" -Destination $archiveDirectory
           Copy-Item "target/legal/THIRD-PARTY-LICENSES.txt" -Destination $archiveDirectory
@@ -405,6 +410,12 @@ jobs:
           if ((Get-FileHash $archivePath).Hash -ne (Get-FileHash $reproPath).Hash) {
             throw "Windows archive is not reproducible."
           }
+
+      - name: Verify Windows updater archive contract
+        shell: pwsh
+        run: |
+          $env:SPOTLIT_TEST_WINDOWS_UPDATE_ARCHIVE = (Resolve-Path "target/dist/spotlit-$env:RELEASE_TAG-x86_64-pc-windows-msvc.zip").Path
+          cargo test --locked --lib update::tests::windows_release_archive_matches_updater -- --exact --ignored
 
       - name: Upload Windows archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

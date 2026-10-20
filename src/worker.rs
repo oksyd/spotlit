@@ -213,6 +213,11 @@ impl Worker {
                 |config| config.automatic_update_checks = enabled,
                 "Update setting saved",
             ),
+            Command::SetUpdateProxy { mode, url } => {
+                let proxy = crate::update::parse_update_proxy(&mode, &url)
+                    .map_err(WorkerError::operation)?;
+                self.update_config(|config| config.update_proxy = proxy, "Update proxy saved")
+            }
             Command::SetFavorite { id, favorite } => {
                 self.handle_set_favorite(WallpaperId::new(id), favorite)
             }

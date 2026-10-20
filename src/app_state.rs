@@ -35,15 +35,13 @@ const SNAPSHOT_LOAD_AFTER_PRESENT_DELAY: Duration = Duration::from_millis(96);
 const PRESENT_REFRESH_DELAY: Duration = Duration::from_millis(1500);
 const SELECTED_PREVIEW_RESULT_RETRY_DELAY: Duration = Duration::from_millis(32);
 const SELECTED_PREVIEW_RESULT_RETRIES: u8 = 8;
-const UPDATE_CHECK_DELAY: Duration = Duration::from_millis(700);
-const UPDATE_CONFIG_RETRY_DELAY: Duration = Duration::from_millis(150);
-const UPDATE_CONFIG_RETRIES: u8 = 60;
 const BACKGROUND_THREAD_STACK_SIZE: usize = 256 * 1024;
 const IMAGE_THREAD_STACK_SIZE: usize = 512 * 1024;
 const EDGE_NAVIGATION_DELTA: i32 = 1_000_000;
 
 #[derive(Clone)]
 pub struct AppState {
+    ui: UiSink,
     worker: WorkerHandle,
     latest_snapshot: Arc<Mutex<Option<Arc<PreparedSnapshot>>>>,
     snapshot_load_pending: Arc<AtomicBool>,
@@ -54,9 +52,10 @@ pub struct AppState {
     auto_sync_state: Arc<(Mutex<bool>, Condvar)>,
     update_dir: PathBuf,
     update_operation_pending: Arc<AtomicBool>,
-    automatic_update_check_decided: Arc<AtomicBool>,
     available_update: Arc<Mutex<Option<crate::update::ReleaseInfo>>>,
     prepared_update: Arc<Mutex<Option<crate::update::PreparedUpdate>>>,
+    #[cfg(target_os = "linux")]
+    installed_update: Arc<Mutex<Option<semver::Version>>>,
 }
 
 #[derive(Clone)]
@@ -115,7 +114,6 @@ impl AppState {
         let snapshot_load_pending = Arc::new(AtomicBool::new(false));
         let auto_sync_state = Arc::new((Mutex::new(auto_sync_enabled), Condvar::new()));
         let update_operation_pending = Arc::new(AtomicBool::new(false));
-        let automatic_update_check_decided = Arc::new(AtomicBool::new(false));
         let ui_events = ui.clone();
         let worker_latest_snapshot = Arc::clone(&latest_snapshot);
         let worker_snapshot_load_pending = Arc::clone(&snapshot_load_pending);
@@ -139,9 +137,10 @@ impl AppState {
         });
         let present_snapshot_generation = Arc::new(AtomicU64::new(0));
         let preview_generation = Arc::new(AtomicU64::new(0));
-        let preview_loader = PreviewLoaderHandle::new(ui, Arc::clone(&preview_generation));
+        let preview_loader = PreviewLoaderHandle::new(ui.clone(), Arc::clone(&preview_generation));
 
         Ok(Self {
+            ui,
             worker,
             latest_snapshot,
             snapshot_load_pending,
@@ -152,9 +151,10 @@ impl AppState {
             auto_sync_state,
             update_dir,
             update_operation_pending,
-            automatic_update_check_decided,
             available_update: Arc::new(Mutex::new(None)),
             prepared_update: Arc::new(Mutex::new(None)),
+            #[cfg(target_os = "linux")]
+            installed_update: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -323,6 +323,17 @@ impl AppState {
 
         let state = self.clone();
         let ui = app.as_weak();
+        app.on_update_proxy_saved(move |mode, url| {
+            if !state.dispatch(Command::SetUpdateProxy {
+                mode: mode.to_string(),
+                url: url.to_string(),
+            }) {
+                clear_pending_settings_save(&ui, "Settings request failed");
+            }
+        });
+
+        let state = self.clone();
+        let ui = app.as_weak();
         app.on_language_selected(move |language| {
             if !state.dispatch(Command::SetLanguage(language.to_string())) {
                 clear_pending_settings_save(&ui, "Settings request failed");
@@ -379,9 +390,8 @@ impl AppState {
         });
 
         let state = self.clone();
-        let ui = app.as_weak();
         app.on_update_check_requested(move || {
-            state.check_for_updates_async(ui.clone(), true);
+            state.check_for_updates_async(true);
         });
 
         let state = self.clone();
@@ -484,15 +494,13 @@ impl AppState {
                 }
             }
         });
-
-        self.schedule_automatic_update_check(
-            app.as_weak(),
-            UPDATE_CHECK_DELAY,
-            UPDATE_CONFIG_RETRIES,
-        );
     }
 
     fn restore_cached_update_state(&self, app: &MainWindow) {
+        #[cfg(target_os = "linux")]
+        if self.show_installed_update(app) {
+            return;
+        }
         match crate::update::cached_update_check(&self.update_dir) {
             Ok(Some(check)) => self.apply_update_check(app, check),
             Ok(None) => set_current_update_status(app),
@@ -504,6 +512,10 @@ impl AppState {
     }
 
     fn apply_update_check(&self, app: &MainWindow, check: crate::update::UpdateCheck) {
+        #[cfg(target_os = "linux")]
+        if self.show_installed_update(app) {
+            return;
+        }
         match check {
             crate::update::UpdateCheck::NoRelease => {
                 clear_update_slot(&self.available_update, "available update");
@@ -548,6 +560,18 @@ impl AppState {
     }
 
     fn handle_update_action(&self, ui: slint::Weak<MainWindow>) {
+        #[cfg(target_os = "linux")]
+        if self
+            .installed_update
+            .lock()
+            .is_ok_and(|installed| installed.is_some())
+        {
+            if let Err(error) = crate::update::restart_installed_update() {
+                tracing::warn!(%error, "failed to restart updated Spotlit");
+                show_update_feedback(&ui, "Restart failed; close and reopen Spotlit");
+            }
+            return;
+        }
         let prepared = match self.prepared_update.lock() {
             Ok(prepared) => prepared.clone(),
             Err(error) => {
@@ -599,13 +623,22 @@ impl AppState {
         drop(app);
 
         let state = self.clone();
-        let result_ui = ui.clone();
+        let result_ui = self.ui.clone();
         let spawn = thread::Builder::new()
             .name("spotlit-update-download".to_string())
             .stack_size(BACKGROUND_THREAD_STACK_SIZE)
             .spawn(move || {
-                let result = crate::update::download_update(&release, &state.update_dir).and_then(
-                    |prepared| {
+                let result = state
+                    .cached_config()
+                    .ok_or_else(|| anyhow::anyhow!("update settings are unavailable"))
+                    .and_then(|config| {
+                        crate::update::download_update(
+                            &release,
+                            &state.update_dir,
+                            &config.update_proxy,
+                        )
+                    })
+                    .and_then(|prepared| {
                         let version = prepared.version.clone();
                         state
                             .prepared_update
@@ -613,15 +646,14 @@ impl AppState {
                             .map_err(|error| anyhow::anyhow!("prepared update state: {error}"))?
                             .replace(prepared);
                         Ok(version)
-                    },
-                );
+                    });
                 if let Err(error) = &result {
                     tracing::warn!(%error, "Spotlit update download failed");
                 }
                 state.finish_update_operation();
 
                 if let Err(error) = slint::invoke_from_event_loop(move || {
-                    let Some(app) = result_ui.upgrade() else {
+                    let Some(app) = result_ui.current().and_then(|ui| ui.upgrade()) else {
                         return;
                     };
                     match result {
@@ -677,7 +709,7 @@ impl AppState {
         drop(app);
 
         let state = self.clone();
-        let result_ui = ui.clone();
+        let result_ui = self.ui.clone();
         let spawn = thread::Builder::new()
             .name("spotlit-update-install".to_string())
             .stack_size(BACKGROUND_THREAD_STACK_SIZE)
@@ -686,36 +718,60 @@ impl AppState {
                 if let Err(error) = &result {
                     tracing::warn!(%error, "Spotlit update install failed");
                 }
+                #[cfg(target_os = "linux")]
+                if matches!(result, Ok(crate::update::InstallDisposition::Installed)) {
+                    replace_update_slot(
+                        &state.installed_update,
+                        prepared.version.clone(),
+                        "installed update",
+                    );
+                }
+                if result.is_err() && crate::update::validate_prepared_update(&prepared).is_err() {
+                    clear_update_slot(&state.prepared_update, "prepared update");
+                }
                 state.finish_update_operation();
 
                 if let Err(error) = slint::invoke_from_event_loop(move || {
-                    let Some(app) = result_ui.upgrade() else {
-                        return;
-                    };
-                    match result {
+                    let app = result_ui.current().and_then(|ui| ui.upgrade());
+                    match (result, app) {
                         #[cfg(target_os = "linux")]
-                        Ok(crate::update::InstallDisposition::ExternalInstaller) => {
-                            app.set_update_status_kind("installer-opened".into());
+                        (Ok(crate::update::InstallDisposition::Installed), Some(app)) => {
+                            state.show_installed_update(&app);
+                            crate::ui_events::show_settings_feedback(
+                                &app,
+                                "Update installed; restart Spotlit to finish",
+                            );
+                        }
+                        #[cfg(target_os = "linux")]
+                        (Ok(crate::update::InstallDisposition::Cancelled), Some(app)) => {
+                            app.set_update_status_kind("ready".into());
                             app.set_update_action_kind("install".into());
                             crate::ui_events::show_settings_feedback(
                                 &app,
-                                "Opened update in the system installer",
+                                "Update installation cancelled",
                             );
                         }
                         #[cfg(windows)]
-                        Ok(crate::update::InstallDisposition::Restarting) => {
+                        (Ok(crate::update::InstallDisposition::Restarting), _) => {
                             if let Err(error) = slint::quit_event_loop() {
                                 tracing::warn!(%error, "failed to exit for Spotlit update");
                             }
                         }
-                        Err(error) => {
+                        (Err(error), Some(app)) => {
                             app.set_update_status_kind("install-failed".into());
-                            app.set_update_action_kind("install".into());
+                            let prepared = state
+                                .prepared_update
+                                .lock()
+                                .is_ok_and(|prepared| prepared.is_some());
+                            app.set_update_action_kind(
+                                if prepared { "install" } else { "download" }.into(),
+                            );
                             crate::ui_events::show_settings_feedback(
                                 &app,
                                 format!("Update install failed: {error}"),
                             );
                         }
+                        (_, None) => {}
                     }
                 }) {
                     tracing::warn!(%error, "failed to post update install result");
@@ -749,79 +805,72 @@ impl AppState {
             .store(false, Ordering::Release);
     }
 
-    fn schedule_automatic_update_check(
-        &self,
-        ui: slint::Weak<MainWindow>,
-        delay: Duration,
-        retries: u8,
-    ) {
-        let state = self.clone();
-        slint::Timer::single_shot(delay, move || {
-            if state.automatic_update_check_decided.load(Ordering::Acquire) {
-                return;
-            }
-
-            if ui.upgrade().is_none() {
-                return;
-            }
-            let Some(enabled) = state.automatic_update_checks_enabled() else {
-                if retries > 0 {
-                    state.schedule_automatic_update_check(
-                        ui,
-                        UPDATE_CONFIG_RETRY_DELAY,
-                        retries - 1,
-                    );
-                }
-                return;
-            };
-
-            if state
-                .automatic_update_check_decided
-                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-                .is_err()
-            {
-                return;
-            }
-
-            if enabled {
-                match crate::update::automatic_check_due(&state.update_dir) {
-                    Ok(true) => {
-                        state.check_for_updates_async(ui, false);
-                    }
-                    Ok(false) => {}
-                    Err(error) => {
-                        tracing::warn!(%error, "failed to read update check cadence");
-                        state.check_for_updates_async(ui, false);
-                    }
-                }
-            }
-        });
+    #[cfg(target_os = "linux")]
+    fn show_installed_update(&self, app: &MainWindow) -> bool {
+        let version = self
+            .installed_update
+            .lock()
+            .ok()
+            .and_then(|installed| installed.clone());
+        let Some(version) = version else {
+            return false;
+        };
+        app.set_update_status_kind("installed".into());
+        app.set_update_status_version(version.to_string().into());
+        app.set_update_action_kind("restart".into());
+        true
     }
 
-    fn check_for_updates_async(&self, ui: slint::Weak<MainWindow>, user_initiated: bool) -> bool {
-        if user_initiated {
-            self.automatic_update_check_decided
-                .store(true, Ordering::Release);
+    fn maybe_check_for_updates(&self) {
+        #[cfg(target_os = "linux")]
+        if self
+            .installed_update
+            .lock()
+            .is_ok_and(|installed| installed.is_some())
+        {
+            return;
         }
+        if self.automatic_update_checks_enabled() != Some(true)
+            || self.update_operation_pending.load(Ordering::Acquire)
+        {
+            return;
+        }
+        match crate::update::automatic_check_due(&self.update_dir) {
+            Ok(false) => {}
+            Ok(true) => {
+                self.check_for_updates_async(false);
+            }
+            Err(error) => {
+                tracing::warn!(%error, "failed to read update check cadence");
+                self.check_for_updates_async(false);
+            }
+        }
+    }
+
+    fn check_for_updates_async(&self, user_initiated: bool) -> bool {
         if !self.begin_update_operation() {
             return false;
         }
 
-        let Some(app) = ui.upgrade() else {
-            self.finish_update_operation();
-            return false;
-        };
-        app.set_update_status_kind("checking".into());
-        app.set_update_action_kind("none".into());
-        drop(app);
+        let ui = self.ui.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ui.current().and_then(|ui| ui.upgrade()) {
+                app.set_update_status_kind("checking".into());
+                app.set_update_action_kind("none".into());
+            }
+        });
 
         let state = self.clone();
-        let result_ui = ui.clone();
+        let result_ui = self.ui.clone();
         let spawn = thread::Builder::new()
             .name("spotlit-update-check".to_string())
             .stack_size(BACKGROUND_THREAD_STACK_SIZE)
             .spawn(move || {
-                let result = crate::update::check_for_update().map_err(|error| error.to_string());
+                let result = state
+                    .cached_config()
+                    .ok_or_else(|| anyhow::anyhow!("update settings are unavailable"))
+                    .and_then(|config| crate::update::check_for_update(&config.update_proxy))
+                    .map_err(|error| error.to_string());
                 let cache_result = match &result {
                     Ok(check) => Ok(check.clone()),
                     Err(error) => Err(anyhow::anyhow!(error.clone())),
@@ -837,7 +886,7 @@ impl AppState {
                 state.finish_update_operation();
 
                 if let Err(error) = slint::invoke_from_event_loop(move || {
-                    let Some(app) = result_ui.upgrade() else {
+                    let Some(app) = result_ui.current().and_then(|ui| ui.upgrade()) else {
                         return;
                     };
 
@@ -875,16 +924,20 @@ impl AppState {
 
         if let Err(error) = spawn {
             self.finish_update_operation();
-            if let Some(app) = ui.upgrade() {
-                app.set_update_status_kind("check-failed".into());
-                app.set_update_action_kind(self.failed_check_action_kind().into());
-                if user_initiated {
-                    crate::ui_events::show_settings_feedback(
-                        &app,
-                        "Update check could not be started",
-                    );
+            let state = self.clone();
+            let ui = self.ui.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ui.current().and_then(|ui| ui.upgrade()) {
+                    app.set_update_status_kind("check-failed".into());
+                    app.set_update_action_kind(state.failed_check_action_kind().into());
+                    if user_initiated {
+                        crate::ui_events::show_settings_feedback(
+                            &app,
+                            "Update check could not be started",
+                        );
+                    }
                 }
-            }
+            });
             tracing::warn!(%error, "failed to start update check thread");
             return false;
         }
@@ -1038,6 +1091,7 @@ impl AppState {
             .name("spotlit-scheduler".to_string())
             .stack_size(BACKGROUND_THREAD_STACK_SIZE)
             .spawn(move || {
+                state.maybe_check_for_updates();
                 let (enabled, changed) = &*state.auto_sync_state;
                 let mut enabled = match enabled.lock() {
                     Ok(enabled) => enabled,
@@ -1048,20 +1102,23 @@ impl AppState {
                 };
 
                 let mut next_source_refresh = Instant::now() + SOURCE_REFRESH_INTERVAL;
+                let mut next_tick = Instant::now() + SCHEDULER_TICK;
                 loop {
-                    let wait_result = changed.wait_timeout(enabled, SCHEDULER_TICK);
-                    let (next_enabled, timeout) = match wait_result {
+                    let wait_result = changed
+                        .wait_timeout(enabled, next_tick.saturating_duration_since(Instant::now()));
+                    let (next_enabled, _) = match wait_result {
                         Ok(result) => result,
                         Err(error) => {
                             tracing::warn!(%error, "auto-sync scheduler wait failed");
                             return;
                         }
                     };
-                    enabled = next_enabled;
+                    let apply_enabled = *next_enabled;
+                    drop(next_enabled);
+                    state.maybe_check_for_updates();
 
-                    if timeout.timed_out() {
-                        let apply_enabled = *enabled;
-                        drop(enabled);
+                    if Instant::now() >= next_tick {
+                        next_tick = Instant::now() + SCHEDULER_TICK;
                         if Instant::now() >= next_source_refresh {
                             state.dispatch(Command::RefreshSources);
                             next_source_refresh = Instant::now() + SOURCE_REFRESH_INTERVAL;
@@ -1069,14 +1126,14 @@ impl AppState {
                         if apply_enabled {
                             state.dispatch(Command::AutoSyncTick);
                         }
-                        enabled = match state.auto_sync_state.0.lock() {
-                            Ok(enabled) => enabled,
-                            Err(error) => {
-                                tracing::warn!(%error, "auto-sync scheduler state was poisoned");
-                                return;
-                            }
-                        };
                     }
+                    enabled = match state.auto_sync_state.0.lock() {
+                        Ok(enabled) => enabled,
+                        Err(error) => {
+                            tracing::warn!(%error, "auto-sync scheduler state was poisoned");
+                            return;
+                        }
+                    };
                 }
             })
             .map(|_| ())
@@ -1704,10 +1761,8 @@ fn update_scheduler_from_event(state: &Arc<(Mutex<bool>, Condvar)>, event: &Prep
     let (current, changed) = &**state;
     match current.lock() {
         Ok(mut current) => {
-            if *current != enabled {
-                *current = enabled;
-                changed.notify_one();
-            }
+            *current = enabled;
+            changed.notify_one();
         }
         Err(error) => {
             tracing::warn!(%error, "failed to update scheduler state from worker event");
@@ -2181,6 +2236,29 @@ mod tests {
         update_scheduler_from_event(&state, &event);
 
         assert!(!*state.0.lock().expect("scheduler state"));
+    }
+
+    #[test]
+    fn settings_changes_wake_scheduler_even_when_wallpaper_auto_apply_is_off() {
+        let state = Arc::new((Mutex::new(false), Condvar::new()));
+        let waiting_state = Arc::clone(&state);
+        let (ready, receiver) = std::sync::mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            let guard = waiting_state.0.lock().unwrap();
+            ready.send(()).unwrap();
+            let (_guard, timeout) = waiting_state
+                .1
+                .wait_timeout(guard, std::time::Duration::from_secs(2))
+                .unwrap();
+            !timeout.timed_out()
+        });
+        receiver.recv().unwrap();
+        update_scheduler_from_event(
+            &state,
+            &super::PreparedWorkerEvent::Snapshot(Arc::new(test_snapshot(1))),
+        );
+        assert!(waiter.join().unwrap());
+        assert!(!*state.0.lock().unwrap());
     }
 
     fn test_preview_loader() -> PreviewLoaderHandle {

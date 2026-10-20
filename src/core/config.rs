@@ -24,6 +24,7 @@ pub struct AppConfig {
     pub start_at_login: bool,
     pub keep_running_in_background: bool,
     pub automatic_update_checks: bool,
+    pub update_proxy: UpdateProxy,
     pub language: LanguageMode,
     #[serde(default = "default_max_history_wallpapers")]
     pub max_history_wallpapers: Option<NonZeroU16>,
@@ -39,6 +40,7 @@ impl Default for AppConfig {
             start_at_login: false,
             keep_running_in_background: true,
             automatic_update_checks: true,
+            update_proxy: UpdateProxy::default(),
             language: LanguageMode::System,
             max_history_wallpapers: default_max_history_wallpapers(),
         }
@@ -103,6 +105,32 @@ pub enum LanguageMode {
     English,
     SimplifiedChinese,
     German,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[serde(default)]
+pub struct UpdateProxy {
+    pub mode: UpdateProxyMode,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateProxyMode {
+    #[default]
+    Environment,
+    Direct,
+    Custom,
+}
+
+impl UpdateProxyMode {
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Environment => "environment",
+            Self::Direct => "direct",
+            Self::Custom => "custom",
+        }
+    }
 }
 
 impl LanguageMode {
@@ -241,6 +269,7 @@ mod tests {
         assert!(!config.start_at_login);
         assert!(config.keep_running_in_background);
         assert!(config.automatic_update_checks);
+        assert_eq!(config.update_proxy, super::UpdateProxy::default());
         assert_eq!(config.language, LanguageMode::System);
         assert_eq!(
             config.max_history_wallpapers.map(|limit| limit.get()),
