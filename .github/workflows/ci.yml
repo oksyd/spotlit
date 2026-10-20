@@ -38,6 +38,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Rust
+        id: rust
+        uses: ./.github/actions/setup-rust
+
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -61,9 +65,9 @@ jobs:
             ~/.cargo/bin/cargo-about
             target/debug
             target/release
-          key: cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ runner.os }}-rust-${{ steps.rust.outputs.version }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+            cargo-${{ runner.os }}-rust-${{ steps.rust.outputs.version }}-
 
       - name: Install cargo-about
         if: runner.os == 'Linux'

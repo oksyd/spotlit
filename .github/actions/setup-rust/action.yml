@@ -1,0 +1,31 @@
+name: Set up Rust
+description: Install and select the Rust version declared in Cargo.toml.
+
+outputs:
+  version:
+    description: The selected Rust version.
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read Rust version
+      id: version
+      shell: bash
+      run: |
+        python=python3
+        if ! command -v "${python}" >/dev/null 2>&1; then
+          python=python
+        fi
+        version="$("${python}" -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("Cargo.toml").read_text(encoding="utf-8"))["package"]["rust-version"])')"
+        echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+    - name: Install Rust toolchain
+      shell: bash
+      env:
+        RUSTUP_TOOLCHAIN: ${{ steps.version.outputs.version }}
+      run: |
+        rustup toolchain install "${RUSTUP_TOOLCHAIN}" --profile minimal --component rustfmt --component clippy --no-self-update
+        echo "RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN}" >> "${GITHUB_ENV}"
+        rustc --version
+        cargo --version
