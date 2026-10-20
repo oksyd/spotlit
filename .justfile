@@ -4,7 +4,13 @@ default:
     just --list
 
 patch:
-    cargo release patch --no-publish --execute
+    test "$(git branch --show-current)" = "main"
+    test -z "$(git status --porcelain)"
+    cargo release version patch --execute
+    cargo release replace --execute --no-confirm
+    cargo release commit --execute --no-confirm
+    cargo release tag --execute --no-confirm
+    cargo release push --execute
 
 ci:
     cargo fmt --all -- --check
