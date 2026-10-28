@@ -776,10 +776,14 @@ fn is_settings_save_result_message(message: &str) -> bool {
             | "Auto sync enabled and synced"
             | "GNOME extension installed"
             | "GNOME extension updated"
+            | "GNOME extension update requires signing out"
+            | "GNOME extension update pending"
+            | "GNOME extension updated without signing out"
             | "GNOME extension enabled"
             | "GNOME extension disabled"
             | "Lock screen blur saved"
             | "Lock screen display saved"
+            | "Wallpaper information setting saved"
     ) || message.starts_with("History limit saved")
 }
 
@@ -789,6 +793,7 @@ fn apply_command_failure(app: &MainWindow, failure: CommandFailure) {
         Command::InstallLockScreenIntegration
         | Command::SetLockScreenBlurMode(_)
         | Command::SetLockScreenDisplayMode(_)
+        | Command::SetLockScreenWallpaperInfo(_)
         | Command::SetLockScreenIntegrationEnabled(_) => app.set_settings_save_pending(false),
         Command::Scan => app.set_refresh_pending(false),
         Command::SyncCurrent | Command::SyncWallpaper { .. } => {
@@ -883,6 +888,7 @@ fn command_belongs_to_settings_context(command: &Command) -> bool {
             | Command::SetLanguage(_)
             | Command::SetLockScreenBlurMode(_)
             | Command::SetLockScreenDisplayMode(_)
+            | Command::SetLockScreenWallpaperInfo(_)
             | Command::SetLockScreenIntegrationEnabled(_)
             | Command::SetWallpaperSource(_)
             | Command::SetStartAtLogin(_)
@@ -1610,6 +1616,9 @@ mod tests {
             "Theme setting saved",
             "Auto sync enabled and synced",
             "GNOME extension updated",
+            "GNOME extension update requires signing out",
+            "GNOME extension update pending",
+            "GNOME extension updated without signing out",
             "History limit saved",
             "History limit saved: 1 wallpapers removed",
         ] {

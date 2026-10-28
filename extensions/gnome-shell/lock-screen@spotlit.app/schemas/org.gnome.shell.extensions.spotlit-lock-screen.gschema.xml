@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.spotlit-lock-screen" path="/org/gnome/shell/extensions/spotlit-lock-screen/">
+    <key name="show-wallpaper-info" type="b">
+      <default>false</default>
+      <summary>Show wallpaper information on the lock screen</summary>
+    </key>
     <key name="blur-mode" type="s">
       <choices>
         <choice value="system"/>

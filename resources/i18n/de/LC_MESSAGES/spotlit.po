@@ -34,6 +34,21 @@ msgstr "Aktualisieren"
 msgid "GNOME extension updated"
 msgstr "GNOME-Erweiterung aktualisiert"
 
+msgid "GNOME extension update requires signing out"
+msgstr "GNOME-Erweiterung: Zum Aktualisieren ab- und wieder anmelden"
+
+msgid "GNOME extension update pending"
+msgstr "Aktualisierung der GNOME-Erweiterung ausstehend"
+
+msgid "GNOME extension updated without signing out"
+msgstr "GNOME-Erweiterung ohne Abmeldung aktualisiert"
+
+msgid "GNOME extension update failed; previous version restored"
+msgstr "GNOME-Erweiterung: Aktualisierung fehlgeschlagen, vorherige Version wiederhergestellt"
+
+msgid "GNOME extension update failed"
+msgstr "Aktualisierung der GNOME-Erweiterung fehlgeschlagen"
+
 msgid "No wallpaper applied by Spotlit"
 msgstr "Noch kein Sperrbild mit Spotlit angewendet"
 
@@ -885,3 +900,9 @@ msgstr "Ungültige HTTP-Proxy-Adresse"
 
 msgid "Invalid proxy mode"
 msgstr "Ungültiger Proxy-Modus"
+
+msgid "Show Wallpaper Information"
+msgstr "Bildinformationen anzeigen"
+
+msgid "Wallpaper information setting saved"
+msgstr "Anzeige der Bildinformationen gespeichert"

@@ -22,10 +22,16 @@ const METADATA: &str =
     include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/metadata.json");
 const EXTENSION: &str =
     include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/extension.js");
+const RUNTIME_HOST: &str =
+    include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/runtimeHost.js");
+const RUNTIME: &str =
+    include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/runtime.js");
 const PREFERENCES: &str =
     include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/prefs.js");
 const STYLESHEET: &str =
-    include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/stylesheet.css");
+    include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/runtime.css");
+const WALLPAPER_INFO: &str =
+    include_str!("../../../extensions/gnome-shell/lock-screen@spotlit.app/wallpaperInfo.js");
 const SCHEMA: &str = include_str!(
     "../../../extensions/gnome-shell/lock-screen@spotlit.app/schemas/org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml"
 );
@@ -33,6 +39,26 @@ const SCHEMA: &str = include_str!(
 #[derive(Serialize, Deserialize)]
 struct InstallSession {
     shell_session: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+enum RuntimeResult {
+    Ready,
+    Pending,
+    Busy,
+    Inactive,
+    RestartRequired,
+    Failed,
+}
+
+#[derive(Debug, Deserialize)]
+struct RuntimeStatus {
+    protocol: u32,
+    result: RuntimeResult,
+    active: bool,
+    current: bool,
+    revision: String,
 }
 
 pub fn lock_screen_integration() -> Result<LockScreenIntegration> {
@@ -99,6 +125,11 @@ pub fn install_lock_screen_integration(work_dir: &Path) -> Result<LockScreenInte
             .arg(work_dir)
             .arg("--schema")
             .arg(&schema)
+            .arg("--extra-source")
+            .arg("wallpaperInfo.js")
+            .args(["--extra-source", "runtimeHost.js"])
+            .args(["--extra-source", "runtime.js"])
+            .args(["--extra-source", "runtime.css"])
             .arg(&source_dir),
         "package GNOME lock screen extension",
     )?;
@@ -118,6 +149,19 @@ pub fn install_lock_screen_integration(work_dir: &Path) -> Result<LockScreenInte
         &extension_dir.join(INSTALL_SESSION_FILE),
         &InstallSession { shell_session },
     )?;
+    if let Some(status) = runtime_call("Reload") {
+        if status.active && status.current {
+            if let Err(error) = fs::remove_file(extension_dir.join(INSTALL_SESSION_FILE)) {
+                tracing::warn!(%error, "could not clear GNOME extension restart marker");
+            }
+        } else if status.result == RuntimeResult::Failed {
+            return Err(SpotlitError::platform(if status.active {
+                "GNOME extension update failed; previous version restored"
+            } else {
+                "GNOME extension update failed"
+            }));
+        }
+    }
     lock_screen_integration()
 }
 
@@ -149,6 +193,14 @@ pub fn set_lock_screen_display_mode(mode: LockScreenDisplayMode) -> Result<LockS
         "display-mode",
         display_mode_value(mode),
         "set GNOME lock screen display policy",
+    )
+}
+
+pub fn set_lock_screen_wallpaper_info(enabled: bool) -> Result<LockScreenIntegration> {
+    set_extension_preference(
+        "show-wallpaper-info",
+        if enabled { "true" } else { "false" },
+        "set GNOME lock screen wallpaper information",
     )
 }
 
@@ -189,6 +241,7 @@ fn integration(state: LockScreenIntegrationState) -> LockScreenIntegration {
         state,
         blur_mode: LockScreenBlurMode::System,
         display_mode: LockScreenDisplayMode::System,
+        wallpaper_info_enabled: false,
         update_available: false,
     }
 }
@@ -197,7 +250,11 @@ fn integration_with_preferences(
     mut state: LockScreenIntegrationState,
     extension_dir: Option<&Path>,
 ) -> LockScreenIntegration {
-    let update_available = extension_dir.is_some_and(extension_needs_update);
+    let mut update_available = extension_dir.is_some_and(extension_needs_update);
+    let runtime = (state == LockScreenIntegrationState::Enabled)
+        .then(|| runtime_call("GetStatus"))
+        .flatten();
+    let mut installed_this_session = false;
     if let Some(dir) = extension_dir
         && !update_available
         && let Ok(contents) = fs::read(dir.join(INSTALL_SESSION_FILE))
@@ -205,8 +262,14 @@ fn integration_with_preferences(
         && let Ok(session) = current_shell_session()
         && installed.shell_session == session
     {
-        state = LockScreenIntegrationState::RestartRequired;
+        installed_this_session = true;
     }
+    (state, update_available) = runtime_integration_state(
+        state,
+        update_available,
+        installed_this_session,
+        runtime.as_ref(),
+    );
     let schema_dir = extension_dir.map(|dir| dir.join("schemas"));
     let blur_mode = schema_dir
         .as_deref()
@@ -216,10 +279,17 @@ fn integration_with_preferences(
         .as_deref()
         .and_then(|dir| read_display_mode(dir).ok())
         .unwrap_or_default();
+    let wallpaper_info_enabled = schema_dir
+        .as_deref()
+        .and_then(|dir| {
+            read_extension_preference(dir, "show-wallpaper-info", "wallpaper information").ok()
+        })
+        .is_some_and(|value| value.trim() == "true");
     LockScreenIntegration {
         state,
         blur_mode,
         display_mode,
+        wallpaper_info_enabled,
         update_available,
     }
 }
@@ -227,8 +297,11 @@ fn integration_with_preferences(
 fn extension_needs_update(dir: &Path) -> bool {
     let files = [
         ("extension.js", EXTENSION),
+        ("runtimeHost.js", RUNTIME_HOST),
+        ("runtime.js", RUNTIME),
         ("prefs.js", PREFERENCES),
-        ("stylesheet.css", STYLESHEET),
+        ("runtime.css", STYLESHEET),
+        ("wallpaperInfo.js", WALLPAPER_INFO),
         (
             "schemas/org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml",
             SCHEMA,
@@ -253,6 +326,71 @@ fn extension_needs_update(dir: &Path) -> bool {
                 .ok()
                 .is_none_or(|installed| installed != *source)
         })
+}
+
+fn runtime_integration_state(
+    state: LockScreenIntegrationState,
+    update_available: bool,
+    installed_this_session: bool,
+    runtime: Option<&RuntimeStatus>,
+) -> (LockScreenIntegrationState, bool) {
+    if let Some(runtime) = runtime {
+        if runtime.active && runtime.current {
+            return (state, update_available);
+        }
+        if !runtime.active || runtime.result == RuntimeResult::RestartRequired {
+            return (
+                LockScreenIntegrationState::RestartRequired,
+                update_available,
+            );
+        }
+        return (state, true);
+    }
+    if installed_this_session {
+        (
+            LockScreenIntegrationState::RestartRequired,
+            update_available,
+        )
+    } else {
+        (state, update_available)
+    }
+}
+
+fn runtime_call(method: &str) -> Option<RuntimeStatus> {
+    let output = Command::new("gdbus")
+        .args([
+            "call",
+            "--session",
+            "--timeout",
+            "3",
+            "--dest",
+            "org.gnome.Shell",
+            "--object-path",
+            "/io/github/oksyd/Spotlit/LockScreen",
+            "--method",
+        ])
+        .arg(format!("io.github.oksyd.Spotlit.LockScreen1.{method}"))
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_runtime_status(&String::from_utf8_lossy(&output.stdout))
+}
+
+fn parse_runtime_status(value: &str) -> Option<RuntimeStatus> {
+    let json = parse_dbus_string(value)?;
+    let status: RuntimeStatus = serde_json::from_str(&json).ok()?;
+    let valid_revision =
+        status.revision.len() == 64 && status.revision.bytes().all(|byte| byte.is_ascii_hexdigit());
+    (status.protocol == 1
+        && (if status.active {
+            valid_revision
+        } else {
+            status.revision.is_empty()
+        })
+        && (!status.current || (status.active && status.result == RuntimeResult::Ready)))
+        .then_some(status)
 }
 
 fn current_shell_session() -> Result<String> {
@@ -420,8 +558,17 @@ fn materialize_extension(work_dir: &Path) -> Result<PathBuf> {
 
     write_source(&source_dir.join("metadata.json"), METADATA)?;
     write_source(&source_dir.join("extension.js"), EXTENSION)?;
+    write_source(&source_dir.join("runtimeHost.js"), RUNTIME_HOST)?;
+    write_source(&source_dir.join("runtime.js"), RUNTIME)?;
     write_source(&source_dir.join("prefs.js"), PREFERENCES)?;
-    write_source(&source_dir.join("stylesheet.css"), STYLESHEET)?;
+    write_source(&source_dir.join("runtime.css"), STYLESHEET)?;
+    // Older development bundles used an automatically loaded Shell stylesheet.
+    let legacy_stylesheet = source_dir.join("stylesheet.css");
+    if legacy_stylesheet.exists() {
+        fs::remove_file(&legacy_stylesheet)
+            .map_err(|error| SpotlitError::io(&legacy_stylesheet, error))?;
+    }
+    write_source(&source_dir.join("wallpaperInfo.js"), WALLPAPER_INFO)?;
     write_source(
         &schema_dir.join("org.gnome.shell.extensions.spotlit-lock-screen.gschema.xml"),
         SCHEMA,
@@ -456,10 +603,11 @@ fn command_error(description: &str, output: &Output) -> SpotlitError {
 #[cfg(test)]
 mod tests {
     use super::{
-        METADATA, extension_needs_update, materialize_extension, parse_blur_mode,
-        parse_dbus_string, parse_display_mode, parse_extension_list,
+        METADATA, RuntimeResult, RuntimeStatus, extension_needs_update, materialize_extension,
+        parse_blur_mode, parse_dbus_string, parse_display_mode, parse_extension_list,
+        parse_runtime_status, runtime_integration_state,
     };
-    use crate::platform::{LockScreenBlurMode, LockScreenDisplayMode};
+    use crate::platform::{LockScreenBlurMode, LockScreenDisplayMode, LockScreenIntegrationState};
 
     #[test]
     fn extension_update_detection_checks_payload_without_downgrading_newer_versions()
@@ -473,6 +621,23 @@ mod tests {
         ));
         let dir = materialize_extension(&work_dir)?;
         assert!(!extension_needs_update(&dir));
+        for file in [
+            "runtimeHost.js",
+            "runtime.js",
+            "runtime.css",
+            "wallpaperInfo.js",
+        ] {
+            assert!(dir.join(file).is_file(), "missing runtime payload: {file}");
+            std::fs::write(dir.join(file), "outdated payload")?;
+            assert!(
+                extension_needs_update(&dir),
+                "did not detect changed {file}"
+            );
+            materialize_extension(&work_dir)?;
+        }
+        std::fs::write(dir.join("stylesheet.css"), "legacy stylesheet")?;
+        materialize_extension(&work_dir)?;
+        assert!(!dir.join("stylesheet.css").exists());
         let mut metadata: serde_json::Value = serde_json::from_str(METADATA)?;
         std::fs::write(dir.join("metadata.json"), serde_json::to_vec(&metadata)?)?;
         assert!(!extension_needs_update(&dir));
@@ -492,6 +657,122 @@ mod tests {
         assert_eq!(parse_dbus_string("('bus-id',)"), Some("bus-id".to_string()));
         assert!(parse_dbus_string("()").is_none());
         assert!(parse_dbus_string("unstructured response").is_none());
+    }
+
+    #[test]
+    fn runtime_protocol_validates_acknowledgements() {
+        let ready = serde_json::json!({
+            "protocol": 1, "result": "ready", "active": true,
+            "current": true, "revision": "a".repeat(64),
+        });
+        let parse = |value: &serde_json::Value| parse_runtime_status(&format!("('{value}',)\n"));
+        assert_eq!(
+            parse(&ready).expect("valid reply").result,
+            RuntimeResult::Ready
+        );
+        for (field, value) in [
+            ("protocol", serde_json::json!(2)),
+            ("result", serde_json::json!("unknown")),
+            ("result", serde_json::json!("pending")),
+            ("active", serde_json::json!(false)),
+            ("revision", serde_json::json!("a".repeat(63))),
+            ("revision", serde_json::json!("z".repeat(64))),
+        ] {
+            let mut invalid = ready.clone();
+            invalid[field] = value;
+            assert!(parse(&invalid).is_none(), "accepted invalid {field}");
+        }
+        for result in ["pending", "busy", "failed", "restart-required"] {
+            let mut reply = ready.clone();
+            reply["result"] = serde_json::json!(result);
+            reply["current"] = serde_json::json!(false);
+            assert!(parse(&reply).is_some(), "rejected {result}");
+        }
+        assert!(
+            parse(&serde_json::json!({
+                "protocol": 1, "result": "inactive", "active": false,
+                "current": false, "revision": "",
+            }))
+            .is_some()
+        );
+        assert!(parse_runtime_status("('not json',)").is_none());
+        assert!(parse_runtime_status("()").is_none());
+    }
+
+    #[test]
+    fn runtime_acknowledgement_supersedes_stale_install_marker() {
+        use LockScreenIntegrationState::{Enabled, RestartRequired};
+        let current = RuntimeStatus {
+            protocol: 1,
+            result: RuntimeResult::Ready,
+            active: true,
+            current: true,
+            revision: "a".repeat(64),
+        };
+        for update_available in [false, true] {
+            assert_eq!(
+                runtime_integration_state(Enabled, update_available, true, Some(&current)),
+                (Enabled, update_available)
+            );
+        }
+        assert_eq!(
+            runtime_integration_state(Enabled, false, true, None),
+            (RestartRequired, false)
+        );
+        assert_eq!(
+            runtime_integration_state(Enabled, false, false, None),
+            (Enabled, false)
+        );
+    }
+
+    #[test]
+    fn runtime_state_keeps_pending_updates_retryable_without_claiming_failed_runtime_is_ready() {
+        use LockScreenIntegrationState::{Enabled, RestartRequired};
+        for result in [
+            RuntimeResult::Pending,
+            RuntimeResult::Busy,
+            RuntimeResult::Failed,
+        ] {
+            let runtime = RuntimeStatus {
+                protocol: 1,
+                result,
+                active: true,
+                current: false,
+                revision: "a".repeat(64),
+            };
+            assert_eq!(
+                runtime_integration_state(Enabled, false, true, Some(&runtime)),
+                (Enabled, true)
+            );
+        }
+        for active in [false, true] {
+            let runtime = RuntimeStatus {
+                protocol: 1,
+                result: RuntimeResult::RestartRequired,
+                active,
+                current: false,
+                revision: if active {
+                    "a".repeat(64)
+                } else {
+                    String::new()
+                },
+            };
+            assert_eq!(
+                runtime_integration_state(Enabled, false, false, Some(&runtime)),
+                (RestartRequired, false)
+            );
+        }
+        let inactive = RuntimeStatus {
+            protocol: 1,
+            result: RuntimeResult::Failed,
+            active: false,
+            current: false,
+            revision: String::new(),
+        };
+        assert_eq!(
+            runtime_integration_state(Enabled, false, false, Some(&inactive)),
+            (RestartRequired, false)
+        );
     }
 
     #[test]

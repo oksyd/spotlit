@@ -8,6 +8,8 @@ mod error;
 mod favorite;
 mod fs_utils;
 mod library;
+#[cfg(target_os = "linux")]
+mod lock_screen_info;
 mod model;
 mod retention;
 mod scheduler;

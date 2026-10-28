@@ -204,6 +204,56 @@ fn lock_screen_rotation_prefers_unsynced_wallpapers()
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+#[test]
+fn lock_screen_information_stays_paired_with_retained_images()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let root = temp_root("lock-screen-info");
+    fs::create_dir_all(&*root)?;
+    let source = root.join("image.png");
+    write_test_wallpaper(&source, 19)?;
+    let paths = AppPaths::new(root.join("data"));
+    let lock_screen_dir = paths.lock_screen_dir.clone();
+    let mut core = SpotlitCore::open(paths, Vec::new())?;
+    let mut wallpaper = core
+        .import_wallpaper_file(&source)?
+        .expect("imported image");
+    let without_info = core.prepare_lock_screen_image(&wallpaper)?;
+    assert!(!super::lock_screen_info::info_path(&without_info).exists());
+    wallpaper.spotlight = SpotlightMetadata {
+        title: Some("Dolomites\nItaly".to_string()),
+        caption: Some("Dolomites Italy".to_string()),
+        copyright: Some("Photo credit".to_string()),
+        ..SpotlightMetadata::default()
+    };
+    let mut staged = Vec::new();
+    for _ in 0..6 {
+        let image = core.prepare_lock_screen_image(&wallpaper)?;
+        let info: serde_json::Value =
+            serde_json::from_slice(&fs::read(super::lock_screen_info::info_path(&image))?)?;
+        assert_eq!(info["version"], 1);
+        assert_eq!(info["image"], image.file_name().unwrap().to_str().unwrap());
+        assert_eq!(info["wallpaper_id"], wallpaper.id.as_str());
+        assert_eq!(info["title"], "Dolomites Italy");
+        assert_eq!(info["description"], serde_json::Value::Null);
+        assert_eq!(info["credit"], "Photo credit");
+        staged.push(image);
+    }
+    assert_eq!(fs::read_dir(&lock_screen_dir)?.count(), 8);
+    assert_eq!(staged.iter().filter(|path| path.exists()).count(), 4);
+    for image in staged {
+        assert_eq!(
+            image.exists(),
+            super::lock_screen_info::info_path(&image).exists()
+        );
+    }
+    let orphan = lock_screen_dir.join("orphan.png.spotlit.json");
+    fs::write(&orphan, "{}")?;
+    core.prepare_lock_screen_image(&wallpaper)?;
+    assert!(!orphan.exists());
+    Ok(())
+}
+
 #[test]
 fn lock_screen_favorite_rotation_uses_only_favorites()
 -> std::result::Result<(), Box<dyn std::error::Error>> {

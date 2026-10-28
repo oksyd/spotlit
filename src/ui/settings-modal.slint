@@ -35,6 +35,7 @@ component SettingsPageContent inherits VerticalLayout {
   in property <bool> daily-bing-available: false;
   in property <string> lock-screen-blur-text: "System";
   in property <string> lock-screen-display-text: "System";
+  in property <bool> lock-screen-wallpaper-info-enabled: false;
   in property <bool> start-at-login-enabled: false;
   in property <bool> keep-running-in-background-enabled: true;
   in property <bool> automatic-update-checks-enabled: true;
@@ -80,6 +81,7 @@ component SettingsPageContent inherits VerticalLayout {
   callback gnome-integration-enabled-changed(bool);
   callback lock-screen-blur-selected(string);
   callback lock-screen-display-selected(string);
+  callback lock-screen-wallpaper-info-changed(bool);
   callback wallpaper-source-selected(string);
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
@@ -347,6 +349,13 @@ component SettingsPageContent inherits VerticalLayout {
           clicked => { root.lock-screen-display-selected("keep-on"); }
         }
       }
+    }
+    ToggleRow {
+      checked: root.lock-screen-wallpaper-info-enabled;
+      text: @tr("Show Wallpaper Information");
+      enabled: root.controls-enabled && root.gnome-integration-state-text == "Ready" && !root.gnome-integration-update-available;
+      dark-theme: root.dark-theme;
+      toggled(enabled) => { root.lock-screen-wallpaper-info-changed(enabled); }
     }
   }
 
@@ -818,6 +827,7 @@ export component SettingsModal inherits FocusScope {
   in property <bool> daily-bing-available: false;
   in property <string> lock-screen-blur-text: "System";
   in property <string> lock-screen-display-text: "System";
+  in property <bool> lock-screen-wallpaper-info-enabled: false;
   in property <bool> start-at-login-enabled: false;
   in property <bool> keep-running-in-background-enabled: true;
   in property <bool> automatic-update-checks-enabled: true;
@@ -909,6 +919,7 @@ export component SettingsModal inherits FocusScope {
   callback gnome-integration-enabled-changed(bool);
   callback lock-screen-blur-selected(string);
   callback lock-screen-display-selected(string);
+  callback lock-screen-wallpaper-info-changed(bool);
   callback wallpaper-source-selected(string);
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
@@ -1111,6 +1122,7 @@ export component SettingsModal inherits FocusScope {
               daily-bing-available: root.daily-bing-available;
               lock-screen-blur-text: root.lock-screen-blur-text;
               lock-screen-display-text: root.lock-screen-display-text;
+              lock-screen-wallpaper-info-enabled: root.lock-screen-wallpaper-info-enabled;
               start-at-login-enabled: root.start-at-login-enabled;
               keep-running-in-background-enabled: root.keep-running-in-background-enabled;
               automatic-update-checks-enabled: root.automatic-update-checks-enabled;
@@ -1164,6 +1176,9 @@ export component SettingsModal inherits FocusScope {
               }
               lock-screen-display-selected(mode) => {
                 root.lock-screen-display-selected(mode);
+              }
+              lock-screen-wallpaper-info-changed(enabled) => {
+                root.lock-screen-wallpaper-info-changed(enabled);
               }
               wallpaper-source-selected(source) => {
                 root.wallpaper-source-selected(source);
@@ -1284,6 +1299,7 @@ export component SettingsModal inherits FocusScope {
                 daily-bing-available: root.daily-bing-available;
                 lock-screen-blur-text: root.lock-screen-blur-text;
                 lock-screen-display-text: root.lock-screen-display-text;
+                lock-screen-wallpaper-info-enabled: root.lock-screen-wallpaper-info-enabled;
                 start-at-login-enabled: root.start-at-login-enabled;
                 keep-running-in-background-enabled: root.keep-running-in-background-enabled;
                 automatic-update-checks-enabled: root.automatic-update-checks-enabled;
@@ -1337,6 +1353,9 @@ export component SettingsModal inherits FocusScope {
                 }
                 lock-screen-display-selected(mode) => {
                   root.lock-screen-display-selected(mode);
+                }
+                lock-screen-wallpaper-info-changed(enabled) => {
+                  root.lock-screen-wallpaper-info-changed(enabled);
                 }
                 wallpaper-source-selected(source) => {
                   root.wallpaper-source-selected(source);

@@ -17,6 +17,7 @@ pub use file_dialog::{pick_export_image_path, pick_wallpaper_image};
 pub use gnome_extension::{
     install_lock_screen_integration, lock_screen_integration, set_lock_screen_blur_mode,
     set_lock_screen_display_mode, set_lock_screen_integration_enabled,
+    set_lock_screen_wallpaper_info,
 };
 pub use paths::{app_paths, wallpaper_source_dirs};
 pub use session::lock_workstation;

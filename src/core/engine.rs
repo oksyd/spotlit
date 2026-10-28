@@ -325,6 +325,12 @@ impl SpotlitCore {
         fs::copy(wallpaper.best_image_path(), &staged_path)
             .map_err(|source| SpotlitError::io(&staged_path, source))?;
 
+        #[cfg(target_os = "linux")]
+        if let Err(error) = super::lock_screen_info::write_info(&staged_path, wallpaper) {
+            let _ = remove_file_if_exists(&staged_path);
+            return Err(error);
+        }
+
         let removed = self.prune_lock_screen_staging(LOCK_SCREEN_STAGING_RETAINED_FILES)?;
         if removed > 0 {
             tracing::debug!(removed, "removed stale lock screen image staging files");
@@ -547,6 +553,13 @@ impl SpotlitCore {
             let entry =
                 entry.map_err(|source| SpotlitError::io(&self.paths.lock_screen_dir, source))?;
             let path = entry.path();
+            #[cfg(target_os = "linux")]
+            if let Some(image) = super::lock_screen_info::image_for_info(&path) {
+                if !image.exists() {
+                    remove_file_if_exists(&path)?;
+                }
+                continue;
+            }
             let metadata = entry
                 .metadata()
                 .map_err(|source| SpotlitError::io(&path, source))?;
@@ -566,6 +579,8 @@ impl SpotlitCore {
 
         for (_, path) in files.into_iter().take(remove_count) {
             remove_file_if_exists(&path)?;
+            #[cfg(target_os = "linux")]
+            remove_file_if_exists(&super::lock_screen_info::info_path(&path))?;
             removed += 1;
         }
 

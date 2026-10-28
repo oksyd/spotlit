@@ -99,6 +99,7 @@ pub struct LockScreenIntegration {
     pub state: LockScreenIntegrationState,
     pub blur_mode: LockScreenBlurMode,
     pub display_mode: LockScreenDisplayMode,
+    pub wallpaper_info_enabled: bool,
     pub update_available: bool,
 }
 
@@ -165,6 +166,11 @@ pub trait PlatformServices: Send + Sync {
         &self,
         _mode: LockScreenDisplayMode,
     ) -> Result<LockScreenIntegration> {
+        Err(SpotlitError::platform(
+            "lock screen integration is unavailable on this platform",
+        ))
+    }
+    fn set_lock_screen_wallpaper_info(&self, _enabled: bool) -> Result<LockScreenIntegration> {
         Err(SpotlitError::platform(
             "lock screen integration is unavailable on this platform",
         ))
@@ -485,5 +491,8 @@ impl PlatformServices for LinuxServices {
         mode: LockScreenDisplayMode,
     ) -> Result<LockScreenIntegration> {
         linux::set_lock_screen_display_mode(mode)
+    }
+    fn set_lock_screen_wallpaper_info(&self, enabled: bool) -> Result<LockScreenIntegration> {
+        linux::set_lock_screen_wallpaper_info(enabled)
     }
 }

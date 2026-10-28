@@ -43,6 +43,11 @@ export global I18n {
     if value == "GNOME extension enabled" { return @tr("GNOME extension enabled"); }
     if value == "GNOME extension installed" { return @tr("GNOME extension installed"); }
     if value == "GNOME extension updated" { return @tr("GNOME extension updated"); }
+    if value == "GNOME extension update requires signing out" { return @tr("GNOME extension update requires signing out"); }
+    if value == "GNOME extension update pending" { return @tr("GNOME extension update pending"); }
+    if value == "GNOME extension updated without signing out" { return @tr("GNOME extension updated without signing out"); }
+    if value == "platform operation failed: GNOME extension update failed; previous version restored" { return @tr("GNOME extension update failed; previous version restored"); }
+    if value == "platform operation failed: GNOME extension update failed" { return @tr("GNOME extension update failed"); }
     if value == "History limit saved" { return @tr("History limit saved"); }
     if value == "Import canceled" { return @tr("Import canceled"); }
     if value == "Import request failed" { return @tr("Import request failed"); }
@@ -55,6 +60,7 @@ export global I18n {
     if value == "Lock screen blur saved" { return @tr("Lock screen blur saved"); }
     if value == "Lock screen display request failed" { return @tr("Lock screen display request failed"); }
     if value == "Lock screen display saved" { return @tr("Lock screen display saved"); }
+    if value == "Wallpaper information setting saved" { return @tr("Wallpaper information setting saved"); }
     if value == "No releases published" { return @tr("No releases published"); }
     if value == "Not Installed" { return @tr("Not Installed"); }
     if value == "Open folder request failed" { return @tr("Open folder request failed"); }
@@ -160,6 +166,7 @@ export component MainWindow inherits Window {
   in-out property <string> last-applied-time: "";
   in-out property <string> lock-screen-blur-text: "System";
   in-out property <string> lock-screen-display-text: "System";
+  in-out property <bool> lock-screen-wallpaper-info-enabled: false;
   in-out property <bool> start-at-login-enabled: false;
   in-out property <bool> keep-running-in-background-enabled: true;
   in-out property <bool> automatic-update-checks-enabled: true;
@@ -360,6 +367,7 @@ export component MainWindow inherits Window {
   callback gnome-integration-enabled-changed(bool);
   callback lock-screen-blur-selected(string);
   callback lock-screen-display-selected(string);
+  callback lock-screen-wallpaper-info-changed(bool);
   callback start-at-login-changed(bool);
   callback keep-running-in-background-changed(bool);
   callback automatic-update-checks-changed(bool);
@@ -1366,6 +1374,7 @@ export component MainWindow inherits Window {
       daily-bing-available: root.daily-bing-available;
       lock-screen-blur-text: root.lock-screen-blur-text;
       lock-screen-display-text: root.lock-screen-display-text;
+      lock-screen-wallpaper-info-enabled: root.lock-screen-wallpaper-info-enabled;
       start-at-login-enabled: root.start-at-login-enabled;
       keep-running-in-background-enabled: root.keep-running-in-background-enabled;
       automatic-update-checks-enabled: root.automatic-update-checks-enabled;
@@ -1413,6 +1422,11 @@ export component MainWindow inherits Window {
       lock-screen-display-selected(mode) => {
         if root.begin-settings-save() {
           root.lock-screen-display-selected(mode);
+        }
+      }
+      lock-screen-wallpaper-info-changed(enabled) => {
+        if root.begin-settings-save() {
+          root.lock-screen-wallpaper-info-changed(enabled);
         }
       }
       wallpaper-source-selected(source) => {

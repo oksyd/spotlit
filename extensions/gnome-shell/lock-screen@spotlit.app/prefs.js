@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -16,6 +17,8 @@ export default class SpotlitLockScreenPreferences extends ExtensionPreferences {
             icon_name: 'preferences-desktop-wallpaper-symbolic',
         });
         const group = new Adw.PreferencesGroup({title: 'Appearance'});
+        const infoRow = new Adw.SwitchRow({title: 'Show Wallpaper Information'});
+        settings.bind('show-wallpaper-info', infoRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         const blurRow = new Adw.ComboRow({
             title: 'Background Blur',
             model: Gtk.StringList.new(['System Default', 'Soft', 'Clear']),
@@ -57,6 +60,7 @@ export default class SpotlitLockScreenPreferences extends ExtensionPreferences {
         });
 
         group.add(blurRow);
+        group.add(infoRow);
         behaviorGroup.add(displayRow);
         page.add(group);
         page.add(behaviorGroup);

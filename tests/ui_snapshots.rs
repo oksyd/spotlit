@@ -67,6 +67,7 @@ fn main_window_visual_snapshots() -> Result<(), Box<dyn Error>> {
     assert_bundled_translations_preserve_wallpaper_metadata()?;
     assert_manual_apply_targets_preview(&runtime)?;
     assert_update_proxy_controls(&runtime)?;
+    assert_wallpaper_information_controls(&runtime)?;
 
     let ui = SnapshotHarness::new()?;
     runtime.set_size(ui.window(), SNAPSHOT_SIZE, 1.0)?;
@@ -315,6 +316,42 @@ fn click(window: &slint::Window, x: f32, y: f32) {
     });
 }
 
+fn assert_wallpaper_information_controls(runtime: &SnapshotRuntime) -> Result<(), Box<dyn Error>> {
+    use std::{cell::RefCell, rc::Rc};
+
+    let ui = spotlit::MainWindow::new()?;
+    ui.set_show_settings(true);
+    ui.set_daily_bing_available(true);
+    ui.set_gnome_integration_visible(true);
+    ui.set_gnome_integration_state_text("Ready".into());
+    ui.window().show()?;
+    runtime.set_size(ui.window(), SNAPSHOT_SIZE, 1.0)?;
+    let requests = Rc::new(RefCell::new(Vec::new()));
+    let received = requests.clone();
+    ui.on_lock_screen_wallpaper_info_changed(move |enabled| received.borrow_mut().push(enabled));
+    runtime.render(ui.window())?;
+    assert!(!ui.get_lock_screen_wallpaper_info_enabled());
+    click(ui.window(), 891.0, 472.0);
+    assert_eq!(*requests.borrow(), [true]);
+    assert!(ui.get_settings_save_pending());
+    ui.set_lock_screen_wallpaper_info_enabled(true);
+    ui.set_settings_save_pending(false);
+    runtime.render(ui.window())?;
+    click(ui.window(), 891.0, 472.0);
+    assert_eq!(*requests.borrow(), [true, false]);
+    ui.set_settings_save_pending(false);
+    ui.set_gnome_integration_update_available(true);
+    runtime.render(ui.window())?;
+    click(ui.window(), 891.0, 472.0);
+    assert_eq!(
+        requests.borrow().len(),
+        2,
+        "older extensions must be updated first"
+    );
+    ui.window().hide()?;
+    Ok(())
+}
+
 fn render_localized_previews(runtime: &SnapshotRuntime) -> Result<(), Box<dyn Error>> {
     for language in ["de", "zh-CN"] {
         slint::select_bundled_translation(language)?;
@@ -396,9 +433,34 @@ fn assert_bundled_translations_preserve_wallpaper_metadata() -> Result<(), Box<d
     assert_eq!(ui.get_current_title(), "Lake Tahoe at Sunrise");
     assert_eq!(
         ui.global::<spotlit::I18n>()
+            .invoke_message("Wallpaper information setting saved".into()),
+        "壁纸信息显示设置已保存"
+    );
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
             .invoke_message("Lock screen display saved".into()),
         "锁屏显示设置已保存"
     );
+    for (message, translated) in [
+        (
+            "GNOME extension updated without signing out",
+            "GNOME 扩展已更新，无需注销",
+        ),
+        ("GNOME extension update pending", "GNOME 扩展更新等待生效"),
+        (
+            "GNOME extension update requires signing out",
+            "GNOME 扩展更新需要注销后重新登录",
+        ),
+        (
+            "platform operation failed: GNOME extension update failed; previous version restored",
+            "GNOME 扩展更新失败，已恢复原版本",
+        ),
+    ] {
+        assert_eq!(
+            ui.global::<spotlit::I18n>().invoke_message(message.into()),
+            translated
+        );
+    }
 
     slint::select_bundled_translation("de")?;
     assert_eq!(
@@ -410,8 +472,18 @@ fn assert_bundled_translations_preserve_wallpaper_metadata() -> Result<(), Box<d
     assert_eq!(ui.get_current_title(), "Lake Tahoe at Sunrise");
     assert_eq!(
         ui.global::<spotlit::I18n>()
+            .invoke_message("Wallpaper information setting saved".into()),
+        "Anzeige der Bildinformationen gespeichert"
+    );
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
             .invoke_message("Lock screen display saved".into()),
         "Sperrbildschirm-Anzeige gespeichert"
+    );
+    assert_eq!(
+        ui.global::<spotlit::I18n>()
+            .invoke_message("GNOME extension updated without signing out".into()),
+        "GNOME-Erweiterung ohne Abmeldung aktualisiert"
     );
 
     slint::select_bundled_translation("en")?;

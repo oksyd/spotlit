@@ -9,4 +9,6 @@ schema="$source_dir/schemas/org.gnome.shell.extensions.spotlit-lock-screen.gsche
 
 mkdir -p "$output_dir"
 glib-compile-schemas --strict --dry-run "$source_dir/schemas"
-gnome-extensions pack --force --out-dir "$output_dir" --schema "$schema" "$source_dir"
+gnome-extensions pack --force --out-dir "$output_dir" --schema "$schema" \
+    --extra-source runtimeHost.js --extra-source runtime.js \
+    --extra-source runtime.css --extra-source wallpaperInfo.js "$source_dir"

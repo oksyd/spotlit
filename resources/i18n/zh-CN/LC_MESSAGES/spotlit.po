@@ -34,6 +34,21 @@ msgstr "更新"
 msgid "GNOME extension updated"
 msgstr "GNOME 扩展已更新"
 
+msgid "GNOME extension update requires signing out"
+msgstr "GNOME 扩展更新需要注销后重新登录"
+
+msgid "GNOME extension update pending"
+msgstr "GNOME 扩展更新等待生效"
+
+msgid "GNOME extension updated without signing out"
+msgstr "GNOME 扩展已更新，无需注销"
+
+msgid "GNOME extension update failed; previous version restored"
+msgstr "GNOME 扩展更新失败，已恢复原版本"
+
+msgid "GNOME extension update failed"
+msgstr "GNOME 扩展更新失败"
+
 msgid "No wallpaper applied by Spotlit"
 msgstr "尚未通过 Spotlit 应用锁屏壁纸"
 
@@ -885,3 +900,9 @@ msgstr "HTTP 代理地址无效"
 
 msgid "Invalid proxy mode"
 msgstr "代理模式无效"
+
+msgid "Show Wallpaper Information"
+msgstr "显示壁纸信息"
+
+msgid "Wallpaper information setting saved"
+msgstr "壁纸信息显示设置已保存"

@@ -15,8 +15,8 @@ use crate::{
     command::Command,
     diagnostics::{self, Metric},
     platform::{
-        LockScreenBlurMode, LockScreenDisplayMode, LockScreenIntegration, LockScreenService,
-        PlatformServices, SystemTheme,
+        LockScreenBlurMode, LockScreenDisplayMode, LockScreenIntegration,
+        LockScreenIntegrationState, LockScreenService, PlatformServices, SystemTheme,
     },
 };
 
@@ -239,6 +239,13 @@ impl Worker {
             Command::SetLockScreenDisplayMode(mode) => {
                 self.handle_set_lock_screen_display_mode(parse_lock_screen_display_mode(&mode)?)
             }
+            Command::SetLockScreenWallpaperInfo(enabled) => {
+                let integration = self
+                    .platform
+                    .set_lock_screen_wallpaper_info(enabled)
+                    .map_err(WorkerError::operation)?;
+                self.integration_updated("Wallpaper information setting saved", integration, false)
+            }
             Command::SetLockScreenIntegrationEnabled(enabled) => {
                 self.handle_set_lock_screen_integration_enabled(enabled)
             }
@@ -288,7 +295,13 @@ impl Worker {
             .install_lock_screen_integration()
             .map_err(WorkerError::operation)?;
         self.integration_updated(
-            if updating {
+            if integration.state == LockScreenIntegrationState::RestartRequired {
+                "GNOME extension update requires signing out"
+            } else if integration.update_available {
+                "GNOME extension update pending"
+            } else if updating && integration.state == LockScreenIntegrationState::Enabled {
+                "GNOME extension updated without signing out"
+            } else if updating {
                 "GNOME extension updated"
             } else {
                 "GNOME extension installed"

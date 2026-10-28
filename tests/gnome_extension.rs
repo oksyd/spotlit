@@ -16,7 +16,8 @@ fn gnome_extension_metadata_targets_shell_50_lock_screen_sessions()
     )?)?;
 
     assert_eq!(metadata["uuid"], EXTENSION_UUID);
-    assert_eq!(metadata["version"], 6);
+    assert_eq!(metadata["version"], 9);
+    assert_eq!(metadata["spotlit-runtime-api"], 1);
     assert_eq!(metadata["url"], "https://github.com/oksyd/spotlit");
     assert_eq!(metadata["shell-version"], serde_json::json!(["50"]));
     assert_eq!(
@@ -71,7 +72,7 @@ fn display_policy_is_extension_local_and_defaults_to_system_behavior()
 
 #[test]
 fn display_policy_tracks_lock_and_power_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
-    let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("extension.js"))?;
+    let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("runtime.js"))?;
 
     assert!(source.contains("import UPower from 'gi://UPowerGlib'"));
     assert!(source.contains("'active-changed', () => this._sync()"));
@@ -87,13 +88,14 @@ fn display_policy_tracks_lock_and_power_lifecycle() -> Result<(), Box<dyn std::e
 
 #[test]
 fn clear_mode_styles_are_scoped_to_the_unlock_dialog() -> Result<(), Box<dyn std::error::Error>> {
-    let stylesheet = fs::read_to_string(Path::new(EXTENSION_ROOT).join("stylesheet.css"))?;
+    let stylesheet = fs::read_to_string(Path::new(EXTENSION_ROOT).join("runtime.css"))?;
 
     assert!(stylesheet.contains(".unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-time"));
     assert!(stylesheet.contains("text-shadow:"));
-    assert!(!stylesheet.contains("background-color:"));
-    assert!(!stylesheet.contains("border:"));
-    assert!(!stylesheet.contains("box-shadow:"));
+    let clock_style = stylesheet.split('}').next().expect("clock style");
+    assert!(!clock_style.contains("background-color:"));
+    assert!(!clock_style.contains("border:"));
+    assert!(!clock_style.contains("box-shadow:"));
     assert!(!stylesheet.contains(".login-dialog.spotlit-clear-mode"));
     Ok(())
 }
@@ -101,7 +103,7 @@ fn clear_mode_styles_are_scoped_to_the_unlock_dialog() -> Result<(), Box<dyn std
 #[test]
 fn clear_mode_transitions_the_full_background_for_authentication()
 -> Result<(), Box<dyn std::error::Error>> {
-    let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("extension.js"))?;
+    let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("runtime.js"))?;
 
     assert!(source.contains("'_setTransitionProgress'"));
     assert!(source.contains("extension._updateClearBackgroundEffects(this, progress)"));
@@ -116,18 +118,25 @@ fn clear_mode_transitions_the_full_background_for_authentication()
 #[test]
 fn gnome_extension_has_no_install_or_system_configuration_side_effects()
 -> Result<(), Box<dyn std::error::Error>> {
-    let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join("extension.js"))?;
-
-    for forbidden in [
-        "Gio.Subprocess",
-        "GLib.spawn",
-        "gnome-extensions",
-        "gsettings set",
+    for file in [
+        "extension.js",
+        "runtimeHost.js",
+        "runtime.js",
+        "wallpaperInfo.js",
     ] {
-        assert!(
-            !source.contains(forbidden),
-            "unexpected side effect: {forbidden}"
-        );
+        let source = fs::read_to_string(Path::new(EXTENSION_ROOT).join(file))?;
+        for forbidden in [
+            "Gio.Subprocess",
+            "GLib.spawn",
+            "gnome-extensions",
+            "gsettings set",
+            "unsafe_mode",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "unexpected side effect in {file}: {forbidden}"
+            );
+        }
     }
     Ok(())
 }

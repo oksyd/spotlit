@@ -414,6 +414,11 @@ fn apply_config(
         |value| app.set_lock_screen_display_text(value),
     );
     set_bool_if_changed(
+        app.get_lock_screen_wallpaper_info_enabled(),
+        integration.wallpaper_info_enabled,
+        |value| app.set_lock_screen_wallpaper_info_enabled(value),
+    );
+    set_bool_if_changed(
         app.get_lock_screen_apply_available(),
         matches!(
             integration.state,

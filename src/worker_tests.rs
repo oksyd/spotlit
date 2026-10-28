@@ -132,6 +132,7 @@ fn loading_snapshot_queries_gnome_integration_without_changing_it()
             state: LockScreenIntegrationState::NotInstalled,
             blur_mode: LockScreenBlurMode::System,
             display_mode: LockScreenDisplayMode::System,
+            wallpaper_info_enabled: false,
             update_available: false,
         })?;
 
@@ -159,6 +160,7 @@ fn gnome_integration_changes_only_after_explicit_worker_command()
             state: LockScreenIntegrationState::NotInstalled,
             blur_mode: LockScreenBlurMode::System,
             display_mode: LockScreenDisplayMode::System,
+            wallpaper_info_enabled: false,
             update_available: false,
         })?;
 
@@ -193,6 +195,7 @@ fn disabling_gnome_integration_also_disables_auto_sync()
             state: LockScreenIntegrationState::Enabled,
             blur_mode: LockScreenBlurMode::Soft,
             display_mode: LockScreenDisplayMode::PluggedIn,
+            wallpaper_info_enabled: false,
             update_available: false,
         })?;
 
@@ -223,6 +226,7 @@ fn lock_screen_display_mode_setting_updates_integration()
             state: LockScreenIntegrationState::Enabled,
             blur_mode: LockScreenBlurMode::Clear,
             display_mode: LockScreenDisplayMode::System,
+            wallpaper_info_enabled: false,
             update_available: false,
         })?;
 
@@ -243,6 +247,39 @@ fn lock_screen_display_mode_setting_updates_integration()
         LockScreenBlurMode::Clear
     );
     assert_eq!(fixture.platform.integration_actions()?, ["display"]);
+    Ok(())
+}
+
+#[test]
+fn wallpaper_information_changes_only_on_explicit_request()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    let fixture = test_worker_with_lock_screen("worker-wallpaper-info", Arc::new(NoopLockScreen))?;
+    assert!(
+        !fixture
+            .platform
+            .lock_screen_integration()?
+            .wallpaper_info_enabled
+    );
+    fixture.worker.handle(Command::LoadSnapshot);
+    assert!(fixture.platform.integration_actions()?.is_empty());
+    for enabled in [true, false] {
+        let WorkerEvent::ConfigUpdated(message, settings) = fixture
+            .worker
+            .handle(Command::SetLockScreenWallpaperInfo(enabled))
+        else {
+            panic!("expected wallpaper information setting update");
+        };
+        assert_eq!(message, "Wallpaper information setting saved");
+        assert_eq!(
+            settings.lock_screen_integration.wallpaper_info_enabled,
+            enabled
+        );
+        assert!(!settings.config.auto_sync_lock_screen);
+    }
+    assert_eq!(
+        fixture.platform.integration_actions()?,
+        ["wallpaper-info", "wallpaper-info"]
+    );
     Ok(())
 }
 
@@ -806,6 +843,59 @@ fn extension_update_is_only_performed_by_explicit_install_command()
     assert_eq!(message, "GNOME extension updated");
     assert!(!settings.lock_screen_integration.update_available);
     assert_eq!(fixture.platform.integration_actions()?, ["install"]);
+    Ok(())
+}
+
+#[test]
+fn extension_update_feedback_distinguishes_applied_pending_and_restart()
+-> std::result::Result<(), Box<dyn std::error::Error>> {
+    for (state, update_available, expected) in [
+        (
+            LockScreenIntegrationState::Enabled,
+            false,
+            "GNOME extension updated without signing out",
+        ),
+        (
+            LockScreenIntegrationState::Enabled,
+            true,
+            "GNOME extension update pending",
+        ),
+        (
+            LockScreenIntegrationState::RestartRequired,
+            false,
+            "GNOME extension update requires signing out",
+        ),
+    ] {
+        let fixture =
+            test_worker_with_lock_screen("extension-update-feedback", Arc::new(NoopLockScreen))?;
+        fixture
+            .platform
+            .set_lock_screen_integration(LockScreenIntegration {
+                state: LockScreenIntegrationState::Enabled,
+                update_available: true,
+                ..LockScreenIntegration::default()
+            })?;
+        *fixture
+            .platform
+            .next_integration_install
+            .lock()
+            .expect("fake install result lock") = Some(LockScreenIntegration {
+            state,
+            update_available,
+            ..LockScreenIntegration::default()
+        });
+        let WorkerEvent::ConfigUpdated(message, settings) =
+            fixture.worker.handle(Command::InstallLockScreenIntegration)
+        else {
+            panic!("expected extension update feedback");
+        };
+        assert_eq!(message, expected);
+        assert_eq!(settings.lock_screen_integration.state, state);
+        assert_eq!(
+            settings.lock_screen_integration.update_available,
+            update_available
+        );
+    }
     Ok(())
 }
 
@@ -1460,6 +1550,7 @@ struct FakePlatform {
     picked_wallpaper_image: Mutex<Option<PathBuf>>,
     startup_state: Mutex<StartupState>,
     lock_screen_integration: Mutex<LockScreenIntegration>,
+    next_integration_install: Mutex<Option<LockScreenIntegration>>,
     integration_actions: Mutex<Vec<String>>,
 }
 
@@ -1474,6 +1565,7 @@ impl Default for FakePlatform {
             picked_wallpaper_image: Mutex::new(None),
             startup_state: Mutex::new(StartupState::Disabled),
             lock_screen_integration: Mutex::new(LockScreenIntegration::default()),
+            next_integration_install: Mutex::new(None),
             integration_actions: Mutex::new(Vec::new()),
         }
     }
@@ -1645,12 +1737,18 @@ impl PlatformServices for FakePlatform {
 
     fn install_lock_screen_integration(&self) -> Result<LockScreenIntegration> {
         self.record_integration_action("install")?;
-        let integration = LockScreenIntegration {
-            state: LockScreenIntegrationState::Disabled,
-            blur_mode: LockScreenBlurMode::System,
-            display_mode: LockScreenDisplayMode::System,
-            update_available: false,
-        };
+        let integration = self
+            .next_integration_install
+            .lock()
+            .map_err(|_| SpotlitError::platform("fake install result lock poisoned"))?
+            .take()
+            .unwrap_or(LockScreenIntegration {
+                state: LockScreenIntegrationState::Disabled,
+                blur_mode: LockScreenBlurMode::System,
+                display_mode: LockScreenDisplayMode::System,
+                wallpaper_info_enabled: false,
+                update_available: false,
+            });
         self.set_lock_screen_integration(integration)?;
         Ok(integration)
     }
@@ -1682,6 +1780,14 @@ impl PlatformServices for FakePlatform {
         self.record_integration_action("display")?;
         let mut integration = self.lock_screen_integration()?;
         integration.display_mode = mode;
+        self.set_lock_screen_integration(integration)?;
+        Ok(integration)
+    }
+
+    fn set_lock_screen_wallpaper_info(&self, enabled: bool) -> Result<LockScreenIntegration> {
+        self.record_integration_action("wallpaper-info")?;
+        let mut integration = self.lock_screen_integration()?;
+        integration.wallpaper_info_enabled = enabled;
         self.set_lock_screen_integration(integration)?;
         Ok(integration)
     }

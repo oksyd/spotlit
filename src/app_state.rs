@@ -291,6 +291,14 @@ impl AppState {
 
         let state = self.clone();
         let ui = app.as_weak();
+        app.on_lock_screen_wallpaper_info_changed(move |enabled| {
+            if !state.dispatch(Command::SetLockScreenWallpaperInfo(enabled)) {
+                clear_pending_settings_save(&ui, "Settings request failed");
+            }
+        });
+
+        let state = self.clone();
+        let ui = app.as_weak();
         app.on_wallpaper_source_selected(move |source| {
             if !state.dispatch(Command::SetWallpaperSource(source.to_string())) {
                 clear_pending_settings_save(&ui, "Settings request failed");

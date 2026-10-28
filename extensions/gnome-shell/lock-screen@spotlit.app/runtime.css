@@ -1,0 +1,29 @@
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-time,
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-date,
+.unlock-dialog.spotlit-clear-mode .unlock-dialog-clock-hint {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.82);
+}
+
+.unlock-dialog .spotlit-wallpaper-info {
+  background-color: rgba(20, 22, 26, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  padding: 16px 20px;
+  spacing: 6px;
+  color: #ffffff;
+}
+
+.unlock-dialog .spotlit-wallpaper-info-title {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.unlock-dialog .spotlit-wallpaper-info-details {
+  font-size: 1em;
+  color: #eeeeee;
+}
+
+.unlock-dialog .spotlit-wallpaper-info-credit {
+  font-size: 0.9em;
+  color: #dddddd;
+}
